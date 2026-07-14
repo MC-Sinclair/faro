@@ -4,85 +4,119 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Estado actual
 
-**El repo está vacío salvo `README.md`.** No hay código, ni manifiesto de paquete, ni tests, ni
-repositorio git inicializado. No hay comandos de build/lint/test que documentar todavía — cuando
-existan, agregalos acá.
+**Diseño y plan cerrados. Implementación no empezada todavía.** El repo tiene:
 
-El `README.md` es la **semilla**, no la spec: fija el problema, el principio rector y las decisiones
-que siguen abiertas. Leelo antes de proponer nada.
+- `README.md` — la semilla original (idea, motivación). Nombra al proyecto "Vademécum" en el cuerpo
+  en varios sitios — es el nombre viejo, el proyecto se llama **Faro**.
+- `docs/superpowers/specs/2026-07-14-faro-design.md` — **la spec aprobada.** Leela antes de tocar
+  nada: ahí están las cinco decisiones cerradas, la arquitectura, el modelo de dominio, las tres
+  herramientas MCP, el manejo de errores y los no-objetivos explícitos de la v1.
+- `docs/superpowers/plans/2026-07-14-faro-v1.md` — **el plan de implementación, 11 tareas en TDD,
+  listo para ejecutar.** Todavía no se ejecutó ninguna tarea. No hay `src/`, ni `pyproject.toml`, ni
+  tests.
 
-## Qué es Faro
+**Para retomar:** invocar la skill `superpowers:executing-plans` (o `subagent-driven-development`)
+sobre `docs/superpowers/plans/2026-07-14-faro-v1.md` y arrancar en la Task 1. El plan es
+autocontenido — cada tarea trae el código completo, los tests y los comandos — pero esta sección
+recoge el *por qué* detrás de las decisiones, que el plan no repite.
 
-Un servidor MCP de documentación viva: expone herramientas para que un asistente lea la doc real y
-vigente de una librería (anclada a una versión concreta) en vez de citarla de memoria desde su fecha
-de corte.
+## Qué es Faro (definición final, no la del README)
 
-Forma mínima tentativa de la API: `buscar_doc(libreria, version, consulta)` y
-`listar_versiones(libreria)`.
+Un servidor MCP que **lee los docstrings del paquete de Python realmente instalado en el venv del
+proyecto del usuario** y responde con la versión exacta, el símbolo cualificado, y cualquier aviso
+de deprecación que la propia librería declare. No busca en la web. No tiene caché. El artefacto
+instalado es la fuente de verdad.
 
-## Principio rector: verificabilidad, no confianza ciega
+Librería objetivo de la v1: **SQLAlchemy 2.x**, ya con el paquete verificado localmente (`2.0.36`).
 
-Este es el hilo que atraviesa todo el diseño. Un MCP de docs que trae la versión equivocada hace que
-el asistente **yerre con más confianza todavía**. Por eso, cualquier código que escribas debe:
+## Las cinco decisiones cerradas, y por qué (esto YA NO es material de brainstorming)
 
-1. **Fijar versión siempre.** Nunca devolver "la última" implícita — que el consumidor la pida
-   explícita.
-2. **Citar la fuente en cada respuesta** (URL + versión + fecha de la doc).
-3. **Fallar honestamente.** Si no tiene la versión pedida, decir "no la tengo". Nunca aproximar en
-   silencio con otra: un `null` honesto vale más que un fragmento plausible pero de otra versión.
+1. **Construir, no instalar un MCP de terceros.** Motivo del usuario: aprender el protocolo MCP +
+   tener control real de fuentes/versiones. Ver sección "Cómo se complementa con Context7" abajo.
+2. **Python + `uv`**, no TypeScript. Verificado con la doc oficial de MCP: ambos SDK son **Tier 1**,
+   así que "Node va primero en el ecosistema MCP" no es un desempate real. Ganó Python porque (a)
+   menos ceremonia de tooling que TypeScript+Zod+tsconfig, y sobre todo (b) **es el único que permite
+   introspeccionar un paquete Python en proceso** — esto resultó ser la razón decisiva, ver punto 4.
+3. **SQLAlchemy 2.x** como librería objetivo, no FastAPI ni `node:sqlite` ni la API de Claude. Motivo:
+   es la única candidata donde el anclaje de versión es *comprobable* — 1.4/2.0/2.1 tienen APIs
+   distintas y hay dolor real de InvestSim.
+4. **Fuente = paquete instalado (introspección), no la web.** Este cambió respecto al diseño original
+   del README (que asumía scraping de `docs.sqlalchemy.org` + su `objects.inv`). Se descartó tras
+   comparar con datos reales: el paquete instalado da versión **exacta** (`2.0.36` vs. `2.0`),
+   **avisos de deprecación gratis** (la directiva Sphinx `.. deprecated::` vive en el docstring), y
+   **no depende de red ni de que el sitio no cambie su HTML**. Se pierde la prosa/tutoriales y las
+   versiones no instaladas — aceptado como no-objetivo explícito de v1.
+5. **Sin caché.** El venv del usuario *es* la caché: el paquete instalado no cambia bajo los pies.
 
-Si una decisión de diseño choca con alguno de estos tres puntos, gana el principio.
+## El error que fundó el caso de prueba central
 
-## No confíes en tu memoria del SDK de MCP
+Durante el brainstorming, se afirmó **de memoria, con total confianza**, que `sqlalchemy.orm.Query.get`
+no existía en SQLAlchemy 2.0. Al verificar contra el paquete real, **sí existe** — documentado como
+legacy, con `.. deprecated:: 2.0 ... available as Session.get` en el docstring.
 
-El conocimiento del modelo sobre el protocolo MCP y su SDK está en la misma cápsula del tiempo que
-todo lo demás, y no es fiable. Antes de escribir una línea contra el SDK, traé la spec vigente
-(`WebFetch`, o la skill `claude-api` para lo de Anthropic). El primer acto de construir Faro es hacer
-a mano, una vez, exactamente lo que Faro automatizará.
+Es exactamente la patología que Faro existe para prevenir, cometida en vivo durante el diseño de la
+herramienta que la previene. Por eso:
 
-## Decisiones abiertas (no las cierres solo)
+- El test de contrato central del plan (`test_query_get_existe_en_2_0_y_esta_deprecado`, Task 10) es
+  literalmente este caso.
+- El parseo de deprecaciones (Task 2) existe como feature de primera clase, no como añadido.
+- Si al implementar algo "parece que un símbolo ya no existe en la nueva versión", **verificar contra
+  el paquete real antes de asumirlo** — puede estar deprecado, no ausente.
 
-Ninguna de estas está resuelta; son material de brainstorming con el usuario, no defaults que puedas
-elegir por tu cuenta:
+## El giro central de diseño: `version` es una afirmación, no una petición
 
-- **Construir vs. instalar uno existente.** Es la decisión #1 y el README la plantea en serio: ya
-  existen MCP de docs de terceros. Construir se justifica por control de fuentes/versiones,
-  aprendizaje del protocolo, o encaje a medida del stack.
-- **Lenguaje/runtime:** Python (coherente con InvestSim) o Node (coherente con taskDir y el
-  ecosistema MCP). Condiciona todo lo demás.
-- **Fuente de la doc:** fetch web en vivo, indexar repo/paquete local, o snapshots versionados —
-  frescura vs. reproducibilidad.
-- **Estrategia de caché** y **alcance de la v1** (una sola librería de punta a punta es una v1
-  legítima).
+`buscar_doc` y `verificar_simbolos` exigen `version` sin default (regla nº1 de la spec). Pero el
+resolver no lo trata como "traeme la doc de esta versión": lo trata como **una afirmación del
+consumidor que se verifica contra la realidad del entorno**. Si el asistente asume 1.4 y el venv
+tiene 2.0.36, Faro responde que no — nunca sirve la 2.0.36 disfrazada de respuesta a "1.4". Este
+mecanismo es `_guarda_de_version` / `version_compatible` en el plan (Task 5) y es, en la práctica,
+una trampa para detectar cuándo el modelo está adivinando la versión en vez de saberla.
 
-## Arquitectura tentativa
+## Cómo se complementa con Context7 (y por qué no compite)
 
-Dependency Rule, igual que InvestSim: el núcleo (resolver una consulta de doc a un fragmento con
-fuente) **no depende** de cómo se obtiene la doc ni de cómo se transporta al asistente. Ambos son
-detalles enchufables tras interfaces.
+Se investigó Context7 (MCP de docs de terceros) como parte del brainstorming. Su parámetro de versión
+es **opcional** y "matchea automáticamente" — trade-off consciente para cubrir miles de librerías vía
+crawling, incompatible con las tres reglas de Faro. No se descartó construir Faro por esto; al
+contrario, motivó la tercera herramienta: **`verificar_simbolos`** contrasta cualquier afirmación
+sobre la API —de Context7, de un blog, o de la memoria del propio modelo— contra el paquete instalado.
+Faro no compite en cobertura (pierde); compite en certeza (ahí gana, porque es el único que mira el
+venv real).
 
+## Arquitectura (ya no tentativa — ver la spec para el diagrama completo)
+
+Dependency Rule. El núcleo (`resolver.py`, `dominio.py`, `parseo.py`, `catalogo.py`) **no importa
+`subprocess`, `httpx` ni `mcp`**. Habla con el puerto `FuenteDeDocs` (`Protocol`). Producción usa
+`FuenteLocal`, que lanza un **subproceso** con el intérprete del proyecto objetivo (`FARO_PYTHON`)
+ejecutando `extractor.py` — un script aparte que solo usa stdlib, porque corre dentro de un venv
+ajeno y porque importar un paquete ejecuta su código de módulo (no debe pasar dentro del proceso de
+Faro). Tests usan `FuenteFake` con datos reales de SQLAlchemy 2.0.36 congelados como fixtures.
+
+Regla dura para cualquier cambio futuro: **si un test del núcleo necesita red o subprocesos, el
+diseño se rompió.**
+
+## Comandos (una vez implementado — ver Task 11 del plan)
+
+```bash
+uv sync                          # instalar
+uv run pytest -m "not contrato"  # ciclo rápido de TDD (núcleo, sin red)
+uv run pytest -m contrato        # tests contra SQLAlchemy 2.0.36 real
+uv run python -m faro.servidor   # arrancar el servidor
 ```
-Cliente MCP  ──►  Capa MCP (transporte)  ──►  Núcleo: ResolverDeDocs
-                                                   │
-                                          ┌────────┴─────────┐
-                                          ▼                  ▼
-                                    FuenteDeDocs        Caché/Índice
-```
 
-La consecuencia práctica: el núcleo se testea **sin red y sin cliente MCP real**. `FuenteDeDocs`
-tendrá un `FakeFuente` para tests, como InvestSim testea su bucle con `FakeMarketDataProvider`.
+`FARO_PYTHON` = ruta al intérprete del proyecto que se quiere consultar (p. ej. el venv de InvestSim).
+Sin esa variable, Faro lee su propio entorno y lo advierte en cada respuesta — nunca lo hace en
+silencio.
 
-## Flujo de trabajo
+## No-objetivos explícitos de la v1 (no proponer estas features sin pasar por brainstorming)
 
-El README lo fija explícitamente: `brainstorming` (cerrar las decisiones abiertas, sobre todo la #1)
-→ `writing-plans` → ejecución **TDD** con el núcleo testeado sin red. No saltes al código.
-
-Cuando exista código: copiar el patrón de `.graphifyignore` de los otros proyectos y arrancar con
-`graphify extract . --code-only`.
+- Nada de búsqueda en prosa/tutoriales/guías de migración — solo referencia de API.
+- Nada de versiones no instaladas — Faro puede sugerir instalarlas, nunca inventa su contenido.
+- Nada de librerías no-Python (`node:sqlite` queda fuera por construcción de esta v1).
+- No juzga idiomaticidad más allá de lo que la librería declara con `.. deprecated::`.
 
 ## Convenciones
 
-- **El proyecto se escribe en español** (README, y presumiblemente nombres de herramientas MCP como
-  `buscar_doc` / `listar_versiones`). Mantené el idioma.
-- El README todavía llama al proyecto **"Vademécum"** en varios párrafos del cuerpo — es el nombre
-  viejo. El proyecto es **Faro**.
+- **Todo en español**: código, nombres de herramientas MCP (`buscar_doc`, `listar_versiones`,
+  `verificar_simbolos`), mensajes al usuario, commits.
+- Python `>=3.12`, gestionado con `uv` (no `pip`/`venv` a mano).
+- Commits en español, formato imperativo, con `Co-Authored-By` cuando los genera Claude.
