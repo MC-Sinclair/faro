@@ -107,6 +107,23 @@ uv run python -m faro.servidor   # arrancar el servidor
 Sin esa variable, Faro lee su propio entorno y lo advierte en cada respuesta — nunca lo hace en
 silencio.
 
+## graphify
+
+`graphify-out/` existe pero está **vacío** (solo `cache/`, sin `graph.json`): se corrió
+`graphify extract . --code-only` antes de escribir código, y con 0 archivos de código dio
+"graph is empty" (exit 1). Es esperado — no es un fallo a investigar.
+
+**Si después de generar o modificar código (Task 1 en adelante) `graphify-out/` sigue sin
+`graph.json` / los demás `.json`** (ya sea porque el hook de `update` no corrió, o corrió antes
+de que el código existiera, o falló en silencio), **relanzar a mano**:
+
+```bash
+graphify extract . --code-only
+```
+
+`graphify-out/` está en `.gitignore`: no se comitea, así que su ausencia tras un `git pull` /
+`checkout` también es normal — hay que regenerarlo con el comando de arriba.
+
 ## No-objetivos explícitos de la v1 (no proponer estas features sin pasar por brainstorming)
 
 - Nada de búsqueda en prosa/tutoriales/guías de migración — solo referencia de API.
