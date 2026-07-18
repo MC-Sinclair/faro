@@ -97,19 +97,6 @@ Faro). Tests usan `FuenteFake` con datos reales de SQLAlchemy 2.0.36 congelados 
 Regla dura para cualquier cambio futuro: **si un test del núcleo necesita red o subprocesos, el
 diseño se rompió.**
 
-## Comandos (una vez implementado — ver Task 11 del plan)
-
-```bash
-uv sync                          # instalar
-uv run pytest -m "not contrato"  # ciclo rápido de TDD (núcleo, sin red)
-uv run pytest -m contrato        # tests contra SQLAlchemy 2.0.36 real
-uv run python -m faro.servidor   # arrancar el servidor
-```
-
-`FARO_PYTHON` = ruta al intérprete del proyecto que se quiere consultar (p. ej. el venv de InvestSim).
-Sin esa variable, Faro lee su propio entorno y lo advierte en cada respuesta — nunca lo hace en
-silencio.
-
 ## graphify
 
 `graphify-out/` existe pero está **vacío** (solo `cache/`, sin `graph.json`): se corrió
