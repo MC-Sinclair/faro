@@ -6,7 +6,10 @@ requires-python = ">=3.12"
 dependencies = ["mcp[cli]>=1.2"]
 
 [dependency-groups]
-dev = ["pytest>=8.0"]
+dev = [
+    "pytest>=8.0",
+    "sqlalchemy==2.0.36",
+]
 
 [build-system]
 requires = ["hatchling"]
