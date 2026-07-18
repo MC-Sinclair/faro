@@ -5,7 +5,7 @@ Habla con un puerto FuenteDeDocs y devuelve objetos de dominio.
 """
 
 from faro.catalogo import CATALOGO, EntradaCatalogo
-from faro.dominio import Ambiguo, EntradaSimbolo, Fragmento, NoEncontrado
+from faro.dominio import Ambiguo, EntradaSimbolo, Fragmento, NoEncontrado, Verificacion
 from faro.puertos import FuenteDeDocs
 
 
@@ -72,6 +72,60 @@ class ResolverDeDocs:
             texto=entrada.doc,
             deprecacion=entrada.deprecacion,
         )
+
+    def verificar_simbolos(
+        self, libreria: str, version: str, simbolos: list[str]
+    ) -> list[Verificacion] | NoEncontrado:
+        """Contrasta afirmaciones sobre la API contra el paquete instalado.
+
+        Las afirmaciones pueden venir de donde sea: otro MCP, un blog, o la
+        memoria del propio modelo. Faro no pregunta de dónde salieron.
+        """
+        conocida = self._verificar_catalogo(libreria)
+        if isinstance(conocida, NoEncontrado):
+            return conocida
+
+        instalada = self._guarda_de_version(libreria, version)
+        if isinstance(instalada, NoEncontrado):
+            return instalada
+
+        entradas = self._fuente.simbolos(libreria)
+        veredictos: list[Verificacion] = []
+
+        for simbolo in simbolos:
+            candidatos = _candidatos(simbolo, entradas)
+
+            if not candidatos:
+                veredictos.append(
+                    Verificacion(
+                        simbolo=simbolo,
+                        existe=False,
+                        resuelto_como=None,
+                        deprecacion=None,
+                    )
+                )
+            elif len(candidatos) > 1:
+                # Existe, pero no afirmamos a cuál resolvió: sería elegir por el usuario.
+                veredictos.append(
+                    Verificacion(
+                        simbolo=simbolo,
+                        existe=True,
+                        resuelto_como=None,
+                        deprecacion=None,
+                    )
+                )
+            else:
+                e = candidatos[0]
+                veredictos.append(
+                    Verificacion(
+                        simbolo=simbolo,
+                        existe=True,
+                        resuelto_como=e.nombre,
+                        deprecacion=e.deprecacion,
+                    )
+                )
+
+        return veredictos
 
     # --- helpers internos ---
 
