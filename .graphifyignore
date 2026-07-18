@@ -1,0 +1,16 @@
+# Sintaxis gitignore.
+# graphify parsea los .json como codigo: cada clave se vuelve un nodo del grafo.
+# Sin esto, los archivos de config meten nodos de basura que ahogan la senal
+# real (repositorios, servicios, providers).
+*.json
+
+# `graphify update` (que corre el hook de Claude Code) NO acepta --code-only:
+# siempre indexa los .md con extractor AST. Excluirlos mantiene el grafo
+# puramente de codigo y hace que update == extract --code-only.
+*.md
+
+# Si algun .json o .md es dato relevante, se re-incluye asi:
+# !ruta/al/archivo/de/datos.json
+
+*.lock
+poetry.lock
