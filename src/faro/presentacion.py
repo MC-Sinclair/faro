@@ -9,6 +9,10 @@ from faro.dominio import Ambiguo, Deprecacion, Fragmento, NoEncontrado, Verifica
 
 TOPE_CARACTERES = 4000
 
+# Un símbolo puede existir sin declarar documentación. Decirlo explícitamente evita
+# que el lector confunda "no hay doc" con "Faro falló" o "el símbolo no existe".
+SIN_DOCUMENTACION = "[este símbolo no declara documentación]"
+
 # :class:`_engine.Result` -> Result ; :meth:`~_orm.Session.get` -> Session.get
 _ROL_RST = re.compile(r":(?:class|meth|func|attr|mod|ref|term|paramref):`~?_?([\w.]+)`")
 
@@ -51,7 +55,10 @@ def formatear(r: Fragmento | Ambiguo | NoEncontrado) -> str:
         lineas.append(f"{r.simbolo.rsplit('.', 1)[-1]}{r.firma}")
 
     lineas.append("")
-    lineas.append(_recortar(limpiar_rst(r.texto)))
+    if r.texto is None:
+        lineas.append(SIN_DOCUMENTACION)
+    else:
+        lineas.append(_recortar(limpiar_rst(r.texto)))
     return "\n".join(lineas)
 
 

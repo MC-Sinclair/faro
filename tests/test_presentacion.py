@@ -123,6 +123,34 @@ def test_verificacion_sin_firma_no_agrega_nada_de_mas():
     assert formatear_verificaciones([con_firma_none]) == "Session.execute: existe (x.Session.execute)"
 
 
+def test_un_simbolo_sin_documentacion_lo_dice_y_conserva_cita_y_firma():
+    f = Fragmento(
+        libreria="faro",
+        version="0.1.0",
+        simbolo="faro.resolver.ResolverDeDocs.buscar_doc",
+        texto=None,
+        deprecacion=None,
+        firma="(libreria: str, version: str, consulta: str)",
+    )
+    salida = formatear(f)
+
+    assert "faro 0.1.0" in salida  # la cita no se pierde (regla 2)
+    assert "(libreria: str, version: str, consulta: str)" in salida
+    assert "no declara documentación" in salida
+
+
+def test_con_texto_la_salida_no_cambia():
+    """Regresión: el aviso solo aparece cuando texto es None."""
+    f = Fragmento(
+        libreria="sqlalchemy",
+        version="2.0.36",
+        simbolo="sqlalchemy.orm.Session.execute",
+        texto="Execute a SQL expression construct.",
+        deprecacion=None,
+    )
+    assert "no declara documentación" not in formatear(f)
+
+
 def _query_get_deprecado() -> CandidatoDeprecado:
     return CandidatoDeprecado(
         nombre="sqlalchemy.orm.Query.get",

@@ -51,6 +51,14 @@ def simbolos_de_prueba() -> list[EntradaSimbolo]:
                 reemplazo="Session.get",
             ),
         ),
+        # Existe de verdad en 2.0.36 y NO tiene docstring: el extractor lo descartaba
+        # entero, haciendo que Faro lo reportara como inexistente.
+        EntradaSimbolo(
+            nombre="sqlalchemy.engine.Connection.commit_prepared",
+            doc=None,
+            deprecacion=None,
+            firma="(xid, recover=False)",
+        ),
         # Dos símbolos que colisionan por sufijo: fuerzan el camino Ambiguo.
         EntradaSimbolo(
             nombre="sqlalchemy.sql.expression.Select.select",

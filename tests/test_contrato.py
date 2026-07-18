@@ -96,6 +96,27 @@ def test_un_ambiguo_real_no_esconde_los_candidatos_deprecados(resolver):
     assert "sqlalchemy.orm.Session.get" not in deprecados  # el vigente no se marca
 
 
+def test_un_simbolo_real_sin_docstring_no_se_reporta_inexistente(resolver):
+    """Connection.commit_prepared existe en 2.0.36 y no declara docstring. El
+    extractor lo descartaba entero, así que Faro decía "NO EXISTE" sobre API real."""
+    r = resolver.buscar_doc("sqlalchemy", "2.0.36", "Connection.commit_prepared")
+    assert isinstance(r, Fragmento), "existe de verdad: no tener doc no es no existir"
+    assert r.texto is None
+    assert r.firma is not None
+
+
+def test_faro_se_encuentra_a_si_mismo(resolver):
+    """Dogfooding convertido en regresión permanente: Faro está instalado en su
+    propio venv y declaraba inexistentes 2 de sus 3 herramientas MCP, porque sus
+    métodos no llevan docstring. Si vuelve a negarse a sí mismo, esto se cae."""
+    version = resolver.listar_versiones("faro")
+    assert not isinstance(version, NoEncontrado), "Faro debería verse instalado"
+
+    for herramienta in ["ResolverDeDocs.buscar_doc", "ResolverDeDocs.listar_versiones"]:
+        r = resolver.buscar_doc("faro", version[0], herramienta)
+        assert isinstance(r, Fragmento), f"{herramienta} existe: es una herramienta de Faro"
+
+
 def test_verificar_simbolos_contra_sqlalchemy_real(resolver):
     r = resolver.verificar_simbolos(
         "sqlalchemy", "2.0.36", ["Session.get", "Query.get", "Session.metodo_inventado"]

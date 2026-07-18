@@ -31,22 +31,31 @@ class CandidatoDeprecado:
 
 @dataclass(frozen=True)
 class EntradaSimbolo:
-    """Un símbolo tal como lo devuelve una FuenteDeDocs, sin interpretar."""
+    """Un símbolo tal como lo devuelve una FuenteDeDocs, sin interpretar.
+
+    `doc` puede ser None: hay símbolos que existen y no declaran documentación.
+    No tener doc no es no existir.
+    """
 
     nombre: str
-    doc: str
+    doc: str | None
     deprecacion: Deprecacion | None
     firma: str | None = None
 
 
 @dataclass(frozen=True)
 class Fragmento:
-    """Una respuesta de Faro. Lleva su procedencia dentro."""
+    """Una respuesta de Faro. Lleva su procedencia dentro.
+
+    `texto` puede ser None (símbolo sin documentación declarada) — no debilita la
+    regla 2: la garantía estructural es sobre libreria/version/simbolo, y `texto`
+    sigue siendo obligatorio de construir, solo que su valor puede ser nulo.
+    """
 
     libreria: str
     version: str
     simbolo: str
-    texto: str
+    texto: str | None
     deprecacion: Deprecacion | None
     firma: str | None = None
 

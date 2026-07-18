@@ -141,14 +141,18 @@ def _anotar(
     objeto_doc: object,
     objeto_firma: object | None = None,
 ) -> None:
+    """Registra el símbolo exista o no su docstring.
+
+    Que un símbolo no declare documentación NO significa que no exista: son dos
+    afirmaciones distintas, y Faro solo sabe la primera. Descartarlo acá hacía que
+    el propio Faro reportara como inexistentes 2 de sus 3 herramientas MCP.
+    """
     if nombre in vistos:
         return
     try:
         doc = inspect.getdoc(objeto_doc)
     except Exception:
-        return
-    if not doc:
-        return
+        doc = None  # que getdoc falle tampoco significa que el símbolo no exista
     vistos[nombre] = {
         "doc": doc,
         "firma": _firma_de(objeto_firma if objeto_firma is not None else objeto_doc),

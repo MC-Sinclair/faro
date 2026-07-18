@@ -15,3 +15,10 @@ class Hija(Base):
 class HijaConOverride(Base):
     def metodo_base(self):
         """Doc propia de HijaConOverride: debe ganarle a la de Base."""
+
+
+class SinDocumentar:
+    """La clase sí documenta; el método no. Existe igual."""
+
+    def metodo_sin_doc(self, cuantos: int = 3) -> str:
+        return "x" * cuantos

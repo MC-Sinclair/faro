@@ -20,7 +20,7 @@ _DIRECTIVA = re.compile(
 _XREF = re.compile(r":(?:meth|func|class|attr):`~?[\w.]*?(\w+\.\w+)`")
 
 
-def extraer_deprecacion(doc: str) -> Deprecacion | None:
+def extraer_deprecacion(doc: str | None) -> Deprecacion | None:
     """Devuelve la Deprecacion declarada en el docstring, o None si no hay."""
     if not doc:
         return None

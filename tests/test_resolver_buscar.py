@@ -66,6 +66,14 @@ def test_el_ambiguo_sin_deprecados_no_inventa_ninguno(resolver):
     assert r.deprecados == []
 
 
+def test_un_simbolo_sin_doc_se_resuelve_igual(resolver):
+    """No tener documentación no es no existir: debe dar Fragmento, no NoEncontrado."""
+    r = resolver.buscar_doc("sqlalchemy", "2.0.36", "Connection.commit_prepared")
+    assert isinstance(r, Fragmento)
+    assert r.texto is None
+    assert r.firma == "(xid, recover=False)"
+
+
 def test_simbolo_inexistente_falla_honestamente(resolver):
     r = resolver.buscar_doc("sqlalchemy", "2.0.36", "Session.no_existe")
     assert isinstance(r, NoEncontrado)

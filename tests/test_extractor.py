@@ -149,6 +149,32 @@ def test_property_no_rompe_la_extraccion_y_no_tiene_firma():
     assert "logical parent" in por_nombre["pathlib.Path.parent"]["doc"].lower()
 
 
+def test_un_simbolo_sin_docstring_existe_igual():
+    """Faro aplicado a sí mismo declaraba inexistentes 2 de sus 3 herramientas MCP,
+    porque el extractor descartaba el símbolo entero cuando no había docstring —
+    confundiendo "no tengo doc de esto" con "esto no existe"."""
+    r = _correr(
+        {"libreria": "paquete_prueba", "modulos": ["paquete_prueba.base"]},
+        env=_env_con_fixture_dedupe(),
+    )
+    por_nombre = {s["nombre"]: s for s in r["simbolos"]}
+    clave = "paquete_prueba.base.SinDocumentar.metodo_sin_doc"
+
+    assert clave in por_nombre, "existe de verdad: no tener doc no es no existir"
+    assert por_nombre[clave]["doc"] is None
+    assert por_nombre[clave]["firma"] == "(cuantos: int = 3) -> str"
+
+
+def test_un_simbolo_con_docstring_sigue_trayendolo():
+    """Regresión: rescatar los indocumentados no debe perder los documentados."""
+    r = _correr(
+        {"libreria": "paquete_prueba", "modulos": ["paquete_prueba.base"]},
+        env=_env_con_fixture_dedupe(),
+    )
+    por_nombre = {s["nombre"]: s for s in r["simbolos"]}
+    assert "Doc de metodo" in por_nombre["paquete_prueba.base.Cosa.metodo"]["doc"]
+
+
 def test_modulos_null_descubre_submodulos_automaticamente():
     """Sin lista fija de módulos (modulos=None), el extractor camina los
     submódulos públicos solo. json (stdlib) tiene submódulos reales:
