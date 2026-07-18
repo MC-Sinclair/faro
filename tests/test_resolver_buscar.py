@@ -48,6 +48,24 @@ def test_consulta_ambigua_lista_candidatos_y_no_elige(resolver):
     assert "sqlalchemy.schema.Table.select" in r.candidatos
 
 
+def test_el_ambiguo_marca_cuales_candidatos_estan_deprecados(resolver):
+    """Listar 'Query.get' y 'Session.get' como opciones equivalentes esconde que
+    una es legacy. Faro tiene el dato: hay que mostrarlo."""
+    r = resolver.buscar_doc("sqlalchemy", "2.0.36", "get")
+    assert isinstance(r, Ambiguo)
+    assert "sqlalchemy.orm.Session.get" in r.candidatos  # la lista no cambia
+
+    nombres = [d.nombre for d in r.deprecados]
+    assert nombres == ["sqlalchemy.orm.Query.get"]
+    assert r.deprecados[0].deprecacion.reemplazo == "Session.get"
+
+
+def test_el_ambiguo_sin_deprecados_no_inventa_ninguno(resolver):
+    r = resolver.buscar_doc("sqlalchemy", "2.0.36", "select")
+    assert isinstance(r, Ambiguo)
+    assert r.deprecados == []
+
+
 def test_simbolo_inexistente_falla_honestamente(resolver):
     r = resolver.buscar_doc("sqlalchemy", "2.0.36", "Session.no_existe")
     assert isinstance(r, NoEncontrado)

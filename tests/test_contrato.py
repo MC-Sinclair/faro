@@ -11,7 +11,7 @@ import sys
 
 import pytest
 
-from faro.dominio import Fragmento, NoEncontrado
+from faro.dominio import Ambiguo, Fragmento, NoEncontrado
 from faro.fuentes.local import FuenteLocal
 from faro.resolver import ResolverDeDocs
 
@@ -80,6 +80,20 @@ def test_la_firma_real_de_session_execute_incluye_statement(resolver):
     assert r.firma is not None
     assert "statement" in r.firma
     assert "self" not in r.firma
+
+
+def test_un_ambiguo_real_no_esconde_los_candidatos_deprecados(resolver):
+    """'get' resuelve a 8 símbolos en SQLAlchemy 2.0.36, y 2 son legacy
+    (Query.get, AppenderQuery.get). Antes, Faro listaba los 8 como iguales y
+    en verificar_simbolos decía solo "existe" — falsamente tranquilizador.
+    Este es el caso fundacional del proyecto llegando por la vía ambigua."""
+    r = resolver.buscar_doc("sqlalchemy", "2.0.36", "get")
+    assert isinstance(r, Ambiguo)
+
+    deprecados = {d.nombre: d.deprecacion for d in r.deprecados}
+    assert "sqlalchemy.orm.Query.get" in deprecados
+    assert deprecados["sqlalchemy.orm.Query.get"].reemplazo == "Session.get"
+    assert "sqlalchemy.orm.Session.get" not in deprecados  # el vigente no se marca
 
 
 def test_verificar_simbolos_contra_sqlalchemy_real(resolver):

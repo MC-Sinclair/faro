@@ -1,4 +1,11 @@
-from faro.dominio import Ambiguo, Deprecacion, Fragmento, NoEncontrado, Verificacion
+from faro.dominio import (
+    Ambiguo,
+    CandidatoDeprecado,
+    Deprecacion,
+    Fragmento,
+    NoEncontrado,
+    Verificacion,
+)
 from faro.presentacion import TOPE_CARACTERES, formatear, formatear_verificaciones, limpiar_rst
 
 
@@ -114,3 +121,48 @@ def test_verificacion_sin_firma_no_agrega_nada_de_mas():
         simbolo="Session.execute", existe=True, resuelto_como="x.Session.execute", deprecacion=None
     )
     assert formatear_verificaciones([con_firma_none]) == "Session.execute: existe (x.Session.execute)"
+
+
+def _query_get_deprecado() -> CandidatoDeprecado:
+    return CandidatoDeprecado(
+        nombre="sqlalchemy.orm.Query.get",
+        deprecacion=Deprecacion(desde="2.0", mensaje="legacy", reemplazo="Session.get"),
+    )
+
+
+def test_el_ambiguo_marca_en_linea_los_candidatos_deprecados():
+    salida = formatear(
+        Ambiguo(
+            consulta="get",
+            candidatos=["sqlalchemy.orm.Query.get", "sqlalchemy.orm.Session.get"],
+            deprecados=[_query_get_deprecado()],
+        )
+    )
+    linea_query = next(l for l in salida.splitlines() if "Query.get" in l)
+    linea_session = next(l for l in salida.splitlines() if "Session.get" in l and "Query" not in l)
+
+    assert "DEPRECADO" in linea_query
+    assert "Session.get" in linea_query  # el reemplazo
+    assert "DEPRECADO" not in linea_session  # el vigente no se marca
+
+
+def test_el_ambiguo_sin_deprecados_se_ve_igual_que_siempre():
+    comunes = dict(consulta="select", candidatos=["a.select", "b.select"])
+    assert formatear(Ambiguo(**comunes, deprecados=[])) == formatear(Ambiguo(**comunes))
+
+
+def test_la_verificacion_ambigua_nombra_los_deprecados():
+    salida = formatear_verificaciones(
+        [
+            Verificacion(
+                simbolo="get",
+                existe=True,
+                resuelto_como=None,
+                deprecacion=None,
+                deprecados=[_query_get_deprecado()],
+            )
+        ]
+    )
+    assert "DEPRECADO" in salida
+    assert "sqlalchemy.orm.Query.get" in salida
+    assert "Session.get" in salida  # el reemplazo

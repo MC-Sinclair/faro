@@ -4,7 +4,14 @@ No sabe qué es MCP. No sabe qué es un subproceso. No sabe qué es la red.
 Habla con un puerto FuenteDeDocs y devuelve objetos de dominio.
 """
 
-from faro.dominio import Ambiguo, EntradaSimbolo, Fragmento, NoEncontrado, Verificacion
+from faro.dominio import (
+    Ambiguo,
+    CandidatoDeprecado,
+    EntradaSimbolo,
+    Fragmento,
+    NoEncontrado,
+    Verificacion,
+)
 from faro.puertos import FuenteDeDocs
 
 
@@ -48,6 +55,7 @@ class ResolverDeDocs:
             return Ambiguo(
                 consulta=consulta,
                 candidatos=sorted(e.nombre for e in candidatos),
+                deprecados=_deprecados_de(candidatos),
             )
 
         entrada = candidatos[0]
@@ -88,13 +96,16 @@ class ResolverDeDocs:
                     )
                 )
             elif len(candidatos) > 1:
-                # Existe, pero no afirmamos a cuál resolvió: sería elegir por el usuario.
+                # Existe, pero no afirmamos a cuál resolvió: sería elegir por el
+                # usuario. Sí decimos cuáles de las opciones están deprecadas: no
+                # elegir no es lo mismo que ocultar que hay trampas entre ellas.
                 veredictos.append(
                     Verificacion(
                         simbolo=simbolo,
                         existe=True,
                         resuelto_como=None,
                         deprecacion=None,
+                        deprecados=_deprecados_de(candidatos),
                     )
                 )
             else:
@@ -128,6 +139,15 @@ class ResolverDeDocs:
                 )
             )
         return instalada
+
+
+def _deprecados_de(entradas: list[EntradaSimbolo]) -> list[CandidatoDeprecado]:
+    """Los candidatos que la librería declara obsoletos, en orden alfabético."""
+    return [
+        CandidatoDeprecado(nombre=e.nombre, deprecacion=e.deprecacion)
+        for e in sorted(entradas, key=lambda e: e.nombre)
+        if e.deprecacion is not None
+    ]
 
 
 def _candidatos(consulta: str, entradas: list[EntradaSimbolo]) -> list[EntradaSimbolo]:

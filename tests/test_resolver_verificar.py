@@ -42,3 +42,23 @@ def test_un_simbolo_ambiguo_no_se_da_por_existente_a_ciegas(resolver):
 def test_verificar_respeta_la_guarda_de_version(resolver):
     r = resolver.verificar_simbolos("sqlalchemy", "1.4", ["Session.execute"])
     assert isinstance(r, NoEncontrado)
+
+
+def test_un_ambiguo_no_esconde_que_algunos_candidatos_estan_deprecados(resolver):
+    """'get' coincide con Session.get (vigente) y Query.get (deprecado). Decir
+    solo "existe" es falsamente tranquilizador: hay una trampa entre las
+    opciones y Faro tiene el dato."""
+    r = resolver.verificar_simbolos("sqlalchemy", "2.0.36", ["get"])
+    v = r[0]
+    assert v.existe
+    assert v.resuelto_como is None  # sigue sin elegir por el usuario
+
+    nombres = [d.nombre for d in v.deprecados]
+    assert nombres == ["sqlalchemy.orm.Query.get"]
+    assert v.deprecados[0].deprecacion.reemplazo == "Session.get"
+
+
+def test_un_ambiguo_sin_deprecados_no_inventa_ninguno(resolver):
+    """'select' coincide con dos símbolos, ninguno deprecado."""
+    r = resolver.verificar_simbolos("sqlalchemy", "2.0.36", ["select"])
+    assert r[0].deprecados == []
