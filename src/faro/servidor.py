@@ -16,8 +16,9 @@ from faro.resolver import ResolverDeDocs
 
 mcp = FastMCP("faro")
 
-_PYTHON_OBJETIVO = os.environ.get("FARO_PYTHON", sys.executable)
-_ES_ENTORNO_PROPIO = "FARO_PYTHON" not in os.environ
+_FARO_PYTHON_ENV = os.environ.get("FARO_PYTHON", "")
+_ES_ENTORNO_PROPIO = not _FARO_PYTHON_ENV
+_PYTHON_OBJETIVO = _FARO_PYTHON_ENV if _FARO_PYTHON_ENV else sys.executable
 
 _resolver = ResolverDeDocs(FuenteLocal(python=_PYTHON_OBJETIVO))
 

@@ -1,3 +1,4 @@
+import subprocess
 import sys
 
 import pytest
@@ -33,3 +34,18 @@ def test_un_interprete_invalido_falla_explicitamente():
     f = FuenteLocal(python="/ruta/que/no/existe/python")
     with pytest.raises(RuntimeError, match="intérprete"):
         f.version_instalada("textwrap")
+
+
+def test_salida_no_json_del_extractor_falla_explicitamente(fuente, monkeypatch):
+    """Si el intérprete objetivo ensucia stdout, no debe reventar con un
+    json.JSONDecodeError crudo — debe envolverse en el mismo RuntimeError que
+    usan los demás fallos de este borde (proceso, timeout, retorno != 0)."""
+
+    def _run_falso(*args, **kwargs):
+        return subprocess.CompletedProcess(
+            args=args, returncode=0, stdout="esto no es json", stderr=""
+        )
+
+    monkeypatch.setattr(subprocess, "run", _run_falso)
+    with pytest.raises(RuntimeError, match="no-JSON"):
+        fuente.version_instalada("textwrap")

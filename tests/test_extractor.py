@@ -47,3 +47,17 @@ def test_no_falla_si_un_modulo_del_catalogo_no_se_puede_importar():
     r = _correr({"libreria": "textwrap", "modulos": ["textwrap", "modulo.que.no.existe"]})
     nombres = {s["nombre"] for s in r["simbolos"]}
     assert "textwrap.dedent" in nombres
+
+
+def test_extrae_classmethods_de_las_clases():
+    """pathlib.Path.cwd es un classmethod real de la stdlib: siempre disponible.
+
+    Regresión: el extractor solo capturaba inspect.isfunction/property en
+    vars(clase), lo que omite descriptores classmethod/staticmethod (viven
+    como objetos classmethod/staticmethod en el __dict__ de la clase, no como
+    funciones planas) — causaba falsos "no existe" en símbolos reales como
+    sqlalchemy.engine.URL.create.
+    """
+    r = _correr({"libreria": "pathlib", "modulos": ["pathlib"]})
+    nombres = {s["nombre"] for s in r["simbolos"]}
+    assert "pathlib.Path.cwd" in nombres

@@ -59,7 +59,11 @@ def extraer(modulos: list[str]) -> list[dict[str, str]]:
                 for nombre_attr, attr in vars(objeto).items():
                     if nombre_attr.startswith("_"):
                         continue
-                    if inspect.isfunction(attr) or isinstance(attr, property):
+                    if (
+                        inspect.isfunction(attr)
+                        or isinstance(attr, property)
+                        or isinstance(attr, (classmethod, staticmethod))
+                    ):
                         _anotar(
                             vistos,
                             f"{nombre_modulo}.{nombre}.{nombre_attr}",

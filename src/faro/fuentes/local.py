@@ -62,6 +62,13 @@ class FuenteLocal:
                 f"El extractor falló con el intérprete '{self._python}': {proc.stderr}"
             )
 
-        resultado = json.loads(proc.stdout)
+        try:
+            resultado = json.loads(proc.stdout)
+        except json.JSONDecodeError as e:
+            raise RuntimeError(
+                f"El extractor devolvió una salida no-JSON con el intérprete '{self._python}': "
+                f"{e}. Salida cruda: {proc.stdout[:200]!r}"
+            ) from e
+
         self._cache[libreria] = resultado
         return resultado
