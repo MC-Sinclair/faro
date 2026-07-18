@@ -53,6 +53,16 @@ def test_pedir_la_1_4_teniendo_la_2_0_no_devuelve_nada(resolver):
     assert "2.0.36" in r.motivo
 
 
+def test_connection_execute_no_es_ambiguo_pese_al_reexport(resolver):
+    """sqlalchemy.Connection ES sqlalchemy.engine.Connection (mismo objeto,
+    re-exportado). Sin deduplicar por identidad en el extractor, esta consulta
+    salía Ambiguo por error — el mismo símbolo contado dos veces, no dos símbolos
+    reales. Encontrado usando Faro contra sí mismo (dogfooding)."""
+    r = resolver.buscar_doc("sqlalchemy", "2.0.36", "Connection.execute")
+    assert isinstance(r, Fragmento), "es un solo símbolo real, no debería ser ambiguo"
+    assert r.simbolo == "sqlalchemy.engine.Connection.execute"
+
+
 def test_verificar_simbolos_contra_sqlalchemy_real(resolver):
     r = resolver.verificar_simbolos(
         "sqlalchemy", "2.0.36", ["Session.get", "Query.get", "Session.metodo_inventado"]

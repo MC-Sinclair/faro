@@ -41,9 +41,19 @@ def version_de(libreria: str) -> str | None:
 
 
 def extraer(modulos: list[str]) -> list[dict[str, str]]:
+    """Muchas librerías re-exportan la misma clase/función en el paquete raíz y en
+    su submódulo real (p. ej. sqlalchemy.Connection es sqlalchemy.engine.Connection).
+    Si contáramos ambas rutas como símbolos distintos, cualquier consulta sin
+    calificar (p. ej. "Connection.execute") saldría ambigua por error: no hay dos
+    símbolos, hay uno solo con dos nombres. Por eso se procesan primero los módulos
+    con path más específico (tienen un punto) y se deduplica por identidad
+    (`is`): la primera vez que se ve un objeto gana su nombre calificado, y las
+    apariciones posteriores del MISMO objeto bajo otro nombre se ignoran.
+    """
     vistos: dict[str, str] = {}
+    nombre_elegido: dict[int, str] = {}
 
-    for nombre_modulo in modulos:
+    for nombre_modulo in sorted(modulos, key=lambda m: m.count(".") == 0):
         try:
             modulo = importlib.import_module(nombre_modulo)
         except Exception:
@@ -55,6 +65,9 @@ def extraer(modulos: list[str]) -> list[dict[str, str]]:
                 continue
 
             if inspect.isclass(objeto):
+                if id(objeto) in nombre_elegido:
+                    continue  # re-export: ya se registró vía un módulo más específico
+                nombre_elegido[id(objeto)] = f"{nombre_modulo}.{nombre}"
                 _anotar(vistos, f"{nombre_modulo}.{nombre}", objeto)
                 for nombre_attr, attr in vars(objeto).items():
                     if nombre_attr.startswith("_"):
@@ -70,6 +83,9 @@ def extraer(modulos: list[str]) -> list[dict[str, str]]:
                             attr,
                         )
             elif inspect.isfunction(objeto):
+                if id(objeto) in nombre_elegido:
+                    continue
+                nombre_elegido[id(objeto)] = f"{nombre_modulo}.{nombre}"
                 _anotar(vistos, f"{nombre_modulo}.{nombre}", objeto)
 
     return [{"nombre": n, "doc": d} for n, d in sorted(vistos.items())]
