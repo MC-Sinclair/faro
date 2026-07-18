@@ -24,6 +24,14 @@ def test_resuelve_por_sufijo(resolver):
     assert r.simbolo == "sqlalchemy.orm.Session.execute"
 
 
+def test_el_fragmento_arrastra_la_firma(resolver):
+    """Cableado completo extractor→dominio→resolver: la firma de la entrada del
+    fixture llega intacta hasta el Fragmento."""
+    r = resolver.buscar_doc("sqlalchemy", "2.0.36", "Session.execute")
+    assert isinstance(r, Fragmento)
+    assert r.firma == "(statement, params=None, *, execution_options={})"
+
+
 def test_el_fragmento_arrastra_la_deprecacion(resolver):
     """EL caso. Query.get existe en 2.0 pero está obsoleto: hay que decirlo."""
     r = resolver.buscar_doc("sqlalchemy", "2.0.36", "Query.get")

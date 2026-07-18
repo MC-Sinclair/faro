@@ -23,6 +23,7 @@ class EntradaSimbolo:
     nombre: str
     doc: str
     deprecacion: Deprecacion | None
+    firma: str | None = None
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,7 @@ class Fragmento:
     simbolo: str
     texto: str
     deprecacion: Deprecacion | None
+    firma: str | None = None
 
 
 @dataclass(frozen=True)
@@ -59,3 +61,4 @@ class Verificacion:
     existe: bool
     resuelto_como: str | None
     deprecacion: Deprecacion | None
+    firma: str | None = None

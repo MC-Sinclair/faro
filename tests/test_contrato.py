@@ -74,6 +74,14 @@ def test_metodos_heredados_resuelven_p_ej_cursorresult_fetchall(resolver):
         assert r.simbolo == f"sqlalchemy.engine.{consulta}"
 
 
+def test_la_firma_real_de_session_execute_incluye_statement(resolver):
+    r = resolver.buscar_doc("sqlalchemy", "2.0.36", "Session.execute")
+    assert isinstance(r, Fragmento)
+    assert r.firma is not None
+    assert "statement" in r.firma
+    assert "self" not in r.firma
+
+
 def test_verificar_simbolos_contra_sqlalchemy_real(resolver):
     r = resolver.verificar_simbolos(
         "sqlalchemy", "2.0.36", ["Session.get", "Query.get", "Session.metodo_inventado"]

@@ -7,7 +7,7 @@ Uso:
     python extractor.py '{"libreria": "sqlalchemy", "modulos": ["sqlalchemy.orm"]}'
 
 Salida (stdout, JSON):
-    {"version": "2.0.36", "simbolos": [{"nombre": "...", "doc": "..."}]}
+    {"version": "2.0.36", "simbolos": [{"nombre": "...", "doc": "...", "firma": "..."}]}
 
 No interpreta nada: vuelca docstrings crudos. El parseo de deprecaciones ocurre
 del lado de Faro.
@@ -50,7 +50,7 @@ def extraer(modulos: list[str]) -> list[dict[str, str]]:
     (`is`): la primera vez que se ve un objeto gana su nombre calificado, y las
     apariciones posteriores del MISMO objeto bajo otro nombre se ignoran.
     """
-    vistos: dict[str, str] = {}
+    vistos: dict[str, dict[str, str | None]] = {}
     nombre_elegido: dict[int, str] = {}
 
     for nombre_modulo in sorted(modulos, key=lambda m: m.count(".") == 0):
@@ -76,10 +76,31 @@ def extraer(modulos: list[str]) -> list[dict[str, str]]:
                 nombre_elegido[id(objeto)] = f"{nombre_modulo}.{nombre}"
                 _anotar(vistos, f"{nombre_modulo}.{nombre}", objeto)
 
-    return [{"nombre": n, "doc": d} for n, d in sorted(vistos.items())]
+    return [
+        {"nombre": n, "doc": v["doc"], "firma": v["firma"]} for n, v in sorted(vistos.items())
+    ]
 
 
-def _anotar_miembros(vistos: dict[str, str], nombre_clase: str, clase: type) -> None:
+def _firma_de(objeto: object) -> str | None:
+    """La firma tal como la llama quien usa el símbolo: sin self/cls.
+
+    Para classmethods, Python ya excluye "cls" al resolver el descriptor vía
+    getattr. Para métodos de instancia, "self" sigue apareciendo (Python no lo
+    saca porque el objeto no está ligado a una instancia) — se saca a mano.
+    Si inspect.signature() no puede (properties, algunos builtins), no hay
+    firma: None, sin tumbar la extracción del resto.
+    """
+    try:
+        firma = inspect.signature(objeto)
+    except (ValueError, TypeError):
+        return None
+    parametros = list(firma.parameters.values())
+    if parametros and parametros[0].name in ("self", "cls"):
+        firma = firma.replace(parameters=parametros[1:])
+    return str(firma)
+
+
+def _anotar_miembros(vistos: dict[str, dict[str, str | None]], nombre_clase: str, clase: type) -> None:
     """Recorre toda la cadena de herencia (__mro__), no solo vars(clase) propia.
 
     Un método heredado y no sobreescrito (p. ej. CursorResult.fetchall, que vive
@@ -101,18 +122,32 @@ def _anotar_miembros(vistos: dict[str, str], nombre_clase: str, clase: type) -> 
                 or isinstance(attr, (classmethod, staticmethod))
             ):
                 ya_vistos.add(nombre_attr)
-                _anotar(vistos, f"{nombre_clase}.{nombre_attr}", attr)
+                _anotar(
+                    vistos,
+                    f"{nombre_clase}.{nombre_attr}",
+                    attr,
+                    objeto_firma=getattr(base, nombre_attr),
+                )
 
 
-def _anotar(vistos: dict[str, str], nombre: str, objeto: object) -> None:
+def _anotar(
+    vistos: dict[str, dict[str, str | None]],
+    nombre: str,
+    objeto_doc: object,
+    objeto_firma: object | None = None,
+) -> None:
     if nombre in vistos:
         return
     try:
-        doc = inspect.getdoc(objeto)
+        doc = inspect.getdoc(objeto_doc)
     except Exception:
         return
-    if doc:
-        vistos[nombre] = doc
+    if not doc:
+        return
+    vistos[nombre] = {
+        "doc": doc,
+        "firma": _firma_de(objeto_firma if objeto_firma is not None else objeto_doc),
+    }
 
 
 def main() -> None:

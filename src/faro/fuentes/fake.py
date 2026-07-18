@@ -28,6 +28,7 @@ def simbolos_de_prueba() -> list[EntradaSimbolo]:
             nombre="sqlalchemy.orm.Session.execute",
             doc="Execute a SQL expression construct.",
             deprecacion=None,
+            firma="(statement, params=None, *, execution_options={})",
         ),
         EntradaSimbolo(
             nombre="sqlalchemy.orm.Session.get",

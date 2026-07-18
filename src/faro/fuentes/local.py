@@ -31,6 +31,7 @@ class FuenteLocal:
             EntradaSimbolo(
                 nombre=s["nombre"],
                 doc=s["doc"],
+                firma=s.get("firma"),
                 deprecacion=extraer_deprecacion(s["doc"]),
             )
             for s in crudos

@@ -41,6 +41,9 @@ def formatear(r: Fragmento | Ambiguo | NoEncontrado) -> str:
             aviso += f" — usar {r.deprecacion.reemplazo}"
         lineas.append(aviso)
 
+    if r.firma is not None:
+        lineas.append(f"{r.simbolo.rsplit('.', 1)[-1]}{r.firma}")
+
     lineas.append("")
     lineas.append(_recortar(limpiar_rst(r.texto)))
     return "\n".join(lineas)
@@ -63,6 +66,8 @@ def formatear_verificaciones(vs: list[Verificacion]) -> str:
             linea += f" — ⚠ DEPRECADO desde {v.deprecacion.desde}"
             if v.deprecacion.reemplazo:
                 linea += f", usar {v.deprecacion.reemplazo}"
+        if v.firma is not None and v.resuelto_como is not None:
+            linea += f" — {v.resuelto_como.rsplit('.', 1)[-1]}{v.firma}"
         lineas.append(linea)
     return "\n".join(lineas)
 

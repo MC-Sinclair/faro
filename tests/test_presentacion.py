@@ -66,3 +66,51 @@ def test_las_verificaciones_marcan_lo_que_no_existe():
     ]
     salida = formatear_verificaciones(vs)
     assert "NO EXISTE" in salida
+
+
+def test_la_firma_aparece_si_esta_presente():
+    f = Fragmento(
+        libreria="sqlalchemy",
+        version="2.0.36",
+        simbolo="sqlalchemy.orm.Session.execute",
+        texto="Execute a SQL expression construct.",
+        deprecacion=None,
+        firma="(statement, parameters=None)",
+    )
+    salida = formatear(f)
+    assert "(statement, parameters=None)" in salida
+
+
+def test_sin_firma_no_agrega_ninguna_linea_de_mas():
+    """firma=None (el caso por default) no debe cambiar la forma del output."""
+    con_datos_comunes = dict(
+        libreria="sqlalchemy",
+        version="2.0.36",
+        simbolo="sqlalchemy.orm.Session.execute",
+        texto="Execute a SQL expression construct.",
+        deprecacion=None,
+    )
+    sin_firma = formatear(Fragmento(**con_datos_comunes, firma=None))
+    explicito_none = formatear(Fragmento(**con_datos_comunes))
+    assert sin_firma == explicito_none
+
+
+def test_la_firma_aparece_en_las_verificaciones():
+    vs = [
+        Verificacion(
+            simbolo="Session.execute",
+            existe=True,
+            resuelto_como="sqlalchemy.orm.Session.execute",
+            deprecacion=None,
+            firma="(statement, parameters=None)",
+        ),
+    ]
+    salida = formatear_verificaciones(vs)
+    assert "(statement, parameters=None)" in salida
+
+
+def test_verificacion_sin_firma_no_agrega_nada_de_mas():
+    con_firma_none = Verificacion(
+        simbolo="Session.execute", existe=True, resuelto_como="x.Session.execute", deprecacion=None
+    )
+    assert formatear_verificaciones([con_firma_none]) == "Session.execute: existe (x.Session.execute)"

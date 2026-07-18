@@ -71,6 +71,7 @@ class ResolverDeDocs:
             simbolo=entrada.nombre,
             texto=entrada.doc,
             deprecacion=entrada.deprecacion,
+            firma=entrada.firma,
         )
 
     def verificar_simbolos(
@@ -122,6 +123,7 @@ class ResolverDeDocs:
                         existe=True,
                         resuelto_como=e.nombre,
                         deprecacion=e.deprecacion,
+                        firma=e.firma,
                     )
                 )
 

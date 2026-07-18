@@ -115,3 +115,35 @@ def test_metodo_heredado_con_override_no_pisa_la_doc_propia():
     por_nombre = {s["nombre"]: s["doc"] for s in r["simbolos"]}
 
     assert "Doc propia de HijaConOverride" in por_nombre["paquete_prueba.base.HijaConOverride.metodo_base"]
+
+
+def test_la_firma_de_una_funcion_se_extrae():
+    r = _correr({"libreria": "textwrap", "modulos": ["textwrap"]})
+    por_nombre = {s["nombre"]: s["firma"] for s in r["simbolos"]}
+    assert por_nombre["textwrap.dedent"] == "(text)"
+
+
+def test_classmethod_no_tiene_cls_en_la_firma():
+    """pathlib.Path.cwd no recibe argumentos del llamador (cls lo pone Python solo)."""
+    r = _correr({"libreria": "pathlib", "modulos": ["pathlib"]})
+    por_nombre = {s["nombre"]: s["firma"] for s in r["simbolos"]}
+    assert por_nombre["pathlib.Path.cwd"] == "()"
+
+
+def test_metodo_de_instancia_no_tiene_self_en_la_firma():
+    r = _correr({"libreria": "textwrap", "modulos": ["textwrap"]})
+    por_nombre = {s["nombre"]: s["firma"] for s in r["simbolos"]}
+    firma = por_nombre["textwrap.TextWrapper.wrap"]
+    assert firma is not None
+    assert "self" not in firma
+    assert "text" in firma
+
+
+def test_property_no_rompe_la_extraccion_y_no_tiene_firma():
+    """pathlib.Path.parent es una property heredada de PurePath: no es invocable,
+    inspect.signature() falla — debe dar firma=None sin tumbar la extracción."""
+    r = _correr({"libreria": "pathlib", "modulos": ["pathlib"]})
+    por_nombre = {s["nombre"]: s for s in r["simbolos"]}
+    assert "pathlib.Path.parent" in por_nombre
+    assert por_nombre["pathlib.Path.parent"]["firma"] is None
+    assert "logical parent" in por_nombre["pathlib.Path.parent"]["doc"].lower()
