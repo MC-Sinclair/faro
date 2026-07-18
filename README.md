@@ -133,3 +133,44 @@ Este README es solo la **semilla**, no la spec. Seguí tu proceso de siempre:
 
 Cuando exista código, copiá el patrón de `.graphifyignore` de los otros proyectos para
 mantener limpio el grafo, y `graphify extract . --code-only` para arrancarlo.
+
+---
+
+## Uso (v1)
+
+Faro lee los docstrings del paquete **instalado en el entorno de tu proyecto**.
+Apuntalo con `FARO_PYTHON`:
+
+```bash
+# Windows
+set FARO_PYTHON=C:\ruta\a\investsim\.venv\Scripts\python.exe
+
+# macOS / Linux
+export FARO_PYTHON=/ruta/a/investsim/.venv/bin/python
+```
+
+Si no lo configurás, Faro lee su propio entorno y **te avisa en cada respuesta**.
+
+### Herramientas
+
+- `listar_versiones(libreria)` — qué versión está instalada de verdad.
+- `buscar_doc(libreria, version, consulta)` — doc de un símbolo. `version` es
+  obligatorio y **se verifica**: si declarás una versión que no es la instalada,
+  Faro te lo dice y no devuelve nada.
+- `verificar_simbolos(libreria, version, simbolos)` — contrasta afirmaciones sobre
+  la API (vengan de donde vengan, incluida la memoria del modelo) contra el paquete
+  instalado.
+
+### Tests
+
+```bash
+uv run pytest -m "not contrato"   # ciclo rápido: núcleo, sin red ni SQLAlchemy
+uv run pytest -m contrato         # contra SQLAlchemy 2.0.36 real
+```
+
+### Límites conocidos de la v1
+
+- Solo referencia de API. **No busca en tutoriales ni guías de migración.**
+- Solo sabe de versiones **instaladas**. No inventa las que no están.
+- Solo paquetes Python. `node:sqlite` queda fuera por construcción.
+- Solo avisa de obsolescencia si la librería la **declara** con `.. deprecated::`.

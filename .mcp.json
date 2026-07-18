@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "faro": {
+      "command": "uv",
+      "args": ["run", "--directory", ".", "python", "-m", "faro.servidor"],
+      "env": {
+        "FARO_PYTHON": "${FARO_PYTHON}"
+      }
+    }
+  }
+}

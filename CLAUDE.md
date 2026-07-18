@@ -4,21 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Estado actual
 
-**Diseño y plan cerrados. Implementación no empezada todavía.** El repo tiene:
+v1 implementada. Servidor MCP funcionando sobre stdio con tres herramientas.
 
-- `README.md` — la semilla original (idea, motivación). Nombra al proyecto "Vademécum" en el cuerpo
-  en varios sitios — es el nombre viejo, el proyecto se llama **Faro**.
-- `docs/superpowers/specs/2026-07-14-faro-design.md` — **la spec aprobada.** Leela antes de tocar
-  nada: ahí están las cinco decisiones cerradas, la arquitectura, el modelo de dominio, las tres
-  herramientas MCP, el manejo de errores y los no-objetivos explícitos de la v1.
-- `docs/superpowers/plans/2026-07-14-faro-v1.md` — **el plan de implementación, 11 tareas en TDD,
-  listo para ejecutar.** Todavía no se ejecutó ninguna tarea. No hay `src/`, ni `pyproject.toml`, ni
-  tests.
+**Comandos:**
 
-**Para retomar:** invocar la skill `superpowers:executing-plans` (o `subagent-driven-development`)
-sobre `docs/superpowers/plans/2026-07-14-faro-v1.md` y arrancar en la Task 1. El plan es
-autocontenido — cada tarea trae el código completo, los tests y los comandos — pero esta sección
-recoge el *por qué* detrás de las decisiones, que el plan no repite.
+```bash
+uv sync                          # instalar
+uv run pytest -m "not contrato"  # ciclo rápido de TDD (núcleo, sin red)
+uv run pytest -m contrato        # tests contra SQLAlchemy 2.0.36 real
+uv run pytest tests/test_resolver_buscar.py::test_resuelve_por_sufijo -v   # un solo test
+uv run python -m faro.servidor   # arrancar el servidor
+```
+
+**Entorno objetivo:** `FARO_PYTHON` apunta al intérprete del proyecto del usuario.
+Sin esa variable, Faro lee su propio entorno y lo advierte en cada respuesta.
+
+**La regla de oro al tocar este código:** el núcleo (`resolver.py`, `dominio.py`,
+`parseo.py`, `catalogo.py`) **no importa `subprocess`, ni `httpx`, ni `mcp`**. Si un
+test del núcleo necesita red o subprocesos, el diseño se rompió.
 
 ## Qué es Faro (definición final, no la del README)
 
