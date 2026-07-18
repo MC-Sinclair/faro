@@ -10,15 +10,18 @@ from faro.dominio import Deprecacion, EntradaSimbolo
 
 
 class FuenteFake:
-    def __init__(self, version: str | None, entradas: list[EntradaSimbolo]) -> None:
+    def __init__(
+        self, version: str | None, entradas: list[EntradaSimbolo], libreria: str = "sqlalchemy"
+    ) -> None:
         self._version = version
         self._entradas = entradas
+        self._libreria = libreria
 
     def version_instalada(self, libreria: str) -> str | None:
-        return self._version
+        return self._version if libreria == self._libreria else None
 
     def simbolos(self, libreria: str) -> list[EntradaSimbolo]:
-        return list(self._entradas)
+        return list(self._entradas) if libreria == self._libreria else []
 
 
 def simbolos_de_prueba() -> list[EntradaSimbolo]:

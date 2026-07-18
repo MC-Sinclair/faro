@@ -42,7 +42,7 @@ class FuenteLocal:
             return self._cache[libreria]
 
         entrada = CATALOGO.get(libreria)
-        modulos = list(entrada.modulos) if entrada else [libreria]
+        modulos = list(entrada.modulos) if entrada else None
         peticion = json.dumps({"libreria": libreria, "modulos": modulos})
 
         try:

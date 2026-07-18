@@ -16,9 +16,11 @@ def test_listar_versiones_devuelve_la_instalada():
 
 
 def test_listar_versiones_de_libreria_desconocida_falla_honestamente(resolver):
+    """Sin catálogo estático que rechace por nombre, el único chequeo real es
+    si está instalada de verdad — mismo mensaje que "no instalada"."""
     res = resolver.listar_versiones("django")
     assert isinstance(res, NoEncontrado)
-    assert "sqlalchemy" in res.motivo  # dice cuáles SÍ conoce
+    assert "no está instalada" in res.motivo
 
 
 def test_listar_versiones_de_libreria_no_instalada_no_devuelve_lista_vacia():

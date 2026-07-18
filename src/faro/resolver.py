@@ -4,7 +4,6 @@ No sabe qué es MCP. No sabe qué es un subproceso. No sabe qué es la red.
 Habla con un puerto FuenteDeDocs y devuelve objetos de dominio.
 """
 
-from faro.catalogo import CATALOGO, EntradaCatalogo
 from faro.dominio import Ambiguo, EntradaSimbolo, Fragmento, NoEncontrado, Verificacion
 from faro.puertos import FuenteDeDocs
 
@@ -21,19 +20,10 @@ def version_compatible(pedida: str, instalada: str) -> bool:
 
 
 class ResolverDeDocs:
-    def __init__(
-        self,
-        fuente: FuenteDeDocs,
-        catalogo: dict[str, EntradaCatalogo] | None = None,
-    ) -> None:
+    def __init__(self, fuente: FuenteDeDocs) -> None:
         self._fuente = fuente
-        self._catalogo = catalogo if catalogo is not None else CATALOGO
 
     def listar_versiones(self, libreria: str) -> list[str] | NoEncontrado:
-        conocida = self._verificar_catalogo(libreria)
-        if isinstance(conocida, NoEncontrado):
-            return conocida
-
         instalada = self._fuente.version_instalada(libreria)
         if instalada is None:
             return NoEncontrado(
@@ -44,10 +34,6 @@ class ResolverDeDocs:
     def buscar_doc(
         self, libreria: str, version: str, consulta: str
     ) -> Fragmento | Ambiguo | NoEncontrado:
-        conocida = self._verificar_catalogo(libreria)
-        if isinstance(conocida, NoEncontrado):
-            return conocida
-
         instalada = self._guarda_de_version(libreria, version)
         if isinstance(instalada, NoEncontrado):
             return instalada
@@ -82,10 +68,6 @@ class ResolverDeDocs:
         Las afirmaciones pueden venir de donde sea: otro MCP, un blog, o la
         memoria del propio modelo. Faro no pregunta de dónde salieron.
         """
-        conocida = self._verificar_catalogo(libreria)
-        if isinstance(conocida, NoEncontrado):
-            return conocida
-
         instalada = self._guarda_de_version(libreria, version)
         if isinstance(instalada, NoEncontrado):
             return instalada
@@ -130,14 +112,6 @@ class ResolverDeDocs:
         return veredictos
 
     # --- helpers internos ---
-
-    def _verificar_catalogo(self, libreria: str) -> None | NoEncontrado:
-        if libreria in self._catalogo:
-            return None
-        conocidas = ", ".join(sorted(self._catalogo))
-        return NoEncontrado(
-            motivo=f"No conozco '{libreria}'. Librerías que conozco: {conocidas}."
-        )
 
     def _guarda_de_version(self, libreria: str, version: str) -> str | NoEncontrado:
         """Verifica la afirmación de versión del consumidor contra la realidad."""

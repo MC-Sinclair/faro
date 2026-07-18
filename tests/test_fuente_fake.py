@@ -11,6 +11,14 @@ def test_la_fake_reporta_none_si_la_libreria_no_esta():
     assert f.version_instalada("sqlalchemy") is None
 
 
+def test_la_fake_discrimina_por_libreria():
+    """Sin el gate de catálogo en resolver.py, la fake tiene que distinguir sola
+    la librería que representa de cualquier otra — antes lo hacía el gate."""
+    f = FuenteFake(version="2.0.36", entradas=simbolos_de_prueba())
+    assert f.version_instalada("django") is None
+    assert f.simbolos("django") == []
+
+
 def test_los_simbolos_de_prueba_incluyen_el_caso_query_get():
     """Query.get existe en 2.0 Y está deprecado. Es el caso que funda el proyecto."""
     nombres = {e.nombre for e in simbolos_de_prueba()}

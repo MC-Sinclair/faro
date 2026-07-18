@@ -147,3 +147,30 @@ def test_property_no_rompe_la_extraccion_y_no_tiene_firma():
     assert "pathlib.Path.parent" in por_nombre
     assert por_nombre["pathlib.Path.parent"]["firma"] is None
     assert "logical parent" in por_nombre["pathlib.Path.parent"]["doc"].lower()
+
+
+def test_modulos_null_descubre_submodulos_automaticamente():
+    """Sin lista fija de módulos (modulos=None), el extractor camina los
+    submódulos públicos solo. json (stdlib) tiene submódulos reales:
+    json.decoder, json.encoder, json.scanner."""
+    r = _correr({"libreria": "json", "modulos": None})
+    nombres = {s["nombre"] for s in r["simbolos"]}
+    assert any(n.startswith("json.decoder.") or n == "json.decoder" for n in nombres)
+
+
+def test_descubrimiento_automatico_excluye_submodulos_privados():
+    r = _correr(
+        {"libreria": "paquete_prueba", "modulos": None},
+        env=_env_con_fixture_dedupe(),
+    )
+    nombres = {s["nombre"] for s in r["simbolos"]}
+    assert not any("_interno" in n for n in nombres)
+    # pero sí encuentra lo público, sin que nadie le diga "paquete_prueba.base":
+    assert any(n.startswith("paquete_prueba.base.") for n in nombres)
+
+
+def test_descubrimiento_automatico_no_rompe_con_modulo_simple():
+    """textwrap no es un paquete (no tiene __path__): cae de vuelta a [libreria]."""
+    r = _correr({"libreria": "textwrap", "modulos": None})
+    nombres = {s["nombre"] for s in r["simbolos"]}
+    assert "textwrap.dedent" in nombres

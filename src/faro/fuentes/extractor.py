@@ -9,6 +9,10 @@ Uso:
 Salida (stdout, JSON):
     {"version": "2.0.36", "simbolos": [{"nombre": "...", "doc": "...", "firma": "..."}]}
 
+Si "modulos" es null: no hay lista fija (la librería no tiene entrada curada en
+catalogo.py) y este script descubre solo los submódulos públicos de la librería
+— tiene que pasar acá porque este es el único proceso con la librería instalada.
+
 No interpreta nada: vuelca docstrings crudos. El parseo de deprecaciones ocurre
 del lado de Faro.
 """
@@ -17,6 +21,7 @@ import importlib
 import importlib.metadata
 import inspect
 import json
+import pkgutil
 import sys
 import warnings
 
@@ -150,6 +155,28 @@ def _anotar(
     }
 
 
+def _descubrir_modulos(libreria: str) -> list[str]:
+    """Para librerías sin entrada curada en catalogo.py: camina sus submódulos
+    públicos automáticamente. La curación manual (SQLAlchemy) sigue ganando
+    cuando existe — esto solo corre cuando el caller no mandó una lista fija.
+    """
+    modulos = [libreria]
+    try:
+        paquete = importlib.import_module(libreria)
+    except Exception:
+        return modulos
+
+    ruta = getattr(paquete, "__path__", None)
+    if ruta is None:
+        return modulos  # módulo simple (p. ej. textwrap): no hay submódulos
+
+    for info in pkgutil.walk_packages(ruta, prefix=f"{libreria}.", onerror=lambda _: None):
+        if any(parte.startswith("_") for parte in info.name.split(".")):
+            continue
+        modulos.append(info.name)
+    return modulos
+
+
 def main() -> None:
     warnings.filterwarnings("ignore")
     peticion = json.loads(sys.argv[1])
@@ -157,7 +184,11 @@ def main() -> None:
     libreria = peticion["libreria"]
     version = version_de(libreria)
 
-    simbolos = extraer(peticion["modulos"]) if version is not None else []
+    modulos = peticion.get("modulos")
+    if modulos is None:
+        modulos = _descubrir_modulos(libreria) if version is not None else []
+
+    simbolos = extraer(modulos) if version is not None else []
 
     json.dump({"version": version, "simbolos": simbolos}, sys.stdout)
 

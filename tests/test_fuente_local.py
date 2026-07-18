@@ -25,6 +25,17 @@ def test_parsea_la_deprecacion_del_lado_de_faro(fuente, monkeypatch):
     assert all(e.deprecacion is None for e in simbolos)
 
 
+def test_descubre_submodulos_de_una_libreria_sin_catalogar(fuente):
+    """email no tiene entrada curada en catalogo.py. MIMEText vive en
+    email.mime.text — NO está re-exportada en el email top-level (verificado:
+    "MIMEText" not in dir(email)) — así que encontrarla prueba que el
+    descubrimiento automático caminó de verdad el submódulo, no que escaneó
+    solo el paquete raíz."""
+    simbolos = fuente.simbolos("email")
+    nombres = {e.nombre for e in simbolos}
+    assert "email.mime.text.MIMEText" in nombres
+
+
 def test_libreria_no_instalada_devuelve_none(fuente):
     assert fuente.version_instalada("paquete_que_no_existe_xyz") is None
 
