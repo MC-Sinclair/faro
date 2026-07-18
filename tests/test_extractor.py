@@ -66,6 +66,12 @@ def test_extrae_classmethods_de_las_clases():
     assert "pathlib.Path.cwd" in nombres
 
 
+def _env_con_fixture_dedupe() -> dict:
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(FIXTURES_DEDUPE) + os.pathsep + env.get("PYTHONPATH", "")
+    return env
+
+
 def test_deduplica_clases_reexportadas_por_identidad():
     """Muchas librerías re-exportan una clase en el paquete raíz y en su submódulo
     real (p. ej. sqlalchemy.Connection es sqlalchemy.engine.Connection). Sin
@@ -74,13 +80,38 @@ def test_deduplica_clases_reexportadas_por_identidad():
     un solo símbolo real. `paquete_prueba` (fixture local) reproduce ese patrón:
     `paquete_prueba.Cosa` es literalmente `paquete_prueba.base.Cosa`.
     """
-    env = os.environ.copy()
-    env["PYTHONPATH"] = str(FIXTURES_DEDUPE) + os.pathsep + env.get("PYTHONPATH", "")
-
     r = _correr(
         {"libreria": "paquete_prueba", "modulos": ["paquete_prueba", "paquete_prueba.base"]},
-        env=env,
+        env=_env_con_fixture_dedupe(),
     )
     coincidencias = [s["nombre"] for s in r["simbolos"] if s["nombre"].endswith(".Cosa.metodo")]
 
     assert coincidencias == ["paquete_prueba.base.Cosa.metodo"]
+
+
+def test_metodo_heredado_sin_override_resuelve_bajo_el_nombre_de_la_hija():
+    """CursorResult.fetchall existe en SQLAlchemy real pero vive en la clase base
+    Result, sin sobreescribir. Antes de este fix, el extractor solo miraba
+    vars(clase) propia y devolvía NoEncontrado pese a que el método existe.
+    `Hija` (fixture local) hereda `metodo_base` de `Base` sin tocarlo: debe resolver
+    bajo el nombre de Hija, con la doc de Base."""
+    r = _correr(
+        {"libreria": "paquete_prueba", "modulos": ["paquete_prueba.base"]},
+        env=_env_con_fixture_dedupe(),
+    )
+    por_nombre = {s["nombre"]: s["doc"] for s in r["simbolos"]}
+
+    assert "paquete_prueba.base.Hija.metodo_base" in por_nombre
+    assert "Doc original de Base" in por_nombre["paquete_prueba.base.Hija.metodo_base"]
+
+
+def test_metodo_heredado_con_override_no_pisa_la_doc_propia():
+    """HijaConOverride sobreescribe metodo_base: debe ganar SU docstring, no el de
+    la clase base — igual que Python resuelve el método en runtime."""
+    r = _correr(
+        {"libreria": "paquete_prueba", "modulos": ["paquete_prueba.base"]},
+        env=_env_con_fixture_dedupe(),
+    )
+    por_nombre = {s["nombre"]: s["doc"] for s in r["simbolos"]}
+
+    assert "Doc propia de HijaConOverride" in por_nombre["paquete_prueba.base.HijaConOverride.metodo_base"]

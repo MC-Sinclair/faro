@@ -69,19 +69,7 @@ def extraer(modulos: list[str]) -> list[dict[str, str]]:
                     continue  # re-export: ya se registró vía un módulo más específico
                 nombre_elegido[id(objeto)] = f"{nombre_modulo}.{nombre}"
                 _anotar(vistos, f"{nombre_modulo}.{nombre}", objeto)
-                for nombre_attr, attr in vars(objeto).items():
-                    if nombre_attr.startswith("_"):
-                        continue
-                    if (
-                        inspect.isfunction(attr)
-                        or isinstance(attr, property)
-                        or isinstance(attr, (classmethod, staticmethod))
-                    ):
-                        _anotar(
-                            vistos,
-                            f"{nombre_modulo}.{nombre}.{nombre_attr}",
-                            attr,
-                        )
+                _anotar_miembros(vistos, f"{nombre_modulo}.{nombre}", objeto)
             elif inspect.isfunction(objeto):
                 if id(objeto) in nombre_elegido:
                     continue
@@ -89,6 +77,31 @@ def extraer(modulos: list[str]) -> list[dict[str, str]]:
                 _anotar(vistos, f"{nombre_modulo}.{nombre}", objeto)
 
     return [{"nombre": n, "doc": d} for n, d in sorted(vistos.items())]
+
+
+def _anotar_miembros(vistos: dict[str, str], nombre_clase: str, clase: type) -> None:
+    """Recorre toda la cadena de herencia (__mro__), no solo vars(clase) propia.
+
+    Un método heredado y no sobreescrito (p. ej. CursorResult.fetchall, que vive
+    en Result) no aparece en vars(CursorResult) — sin este recorrido, el extractor
+    lo reporta como inexistente aunque exista de verdad. Python coloca la propia
+    clase primero en __mro__, así que "la primera vez que se ve el nombre gana"
+    reproduce la misma regla de resolución de atributos de Python: una subclase
+    que sobreescribe gana con su propio docstring; si no sobreescribe, gana la
+    versión de la clase base donde el método realmente vive.
+    """
+    ya_vistos: set[str] = set()
+    for base in clase.__mro__:
+        for nombre_attr, attr in vars(base).items():
+            if nombre_attr.startswith("_") or nombre_attr in ya_vistos:
+                continue
+            if (
+                inspect.isfunction(attr)
+                or isinstance(attr, property)
+                or isinstance(attr, (classmethod, staticmethod))
+            ):
+                ya_vistos.add(nombre_attr)
+                _anotar(vistos, f"{nombre_clase}.{nombre_attr}", attr)
 
 
 def _anotar(vistos: dict[str, str], nombre: str, objeto: object) -> None:

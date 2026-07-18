@@ -63,6 +63,17 @@ def test_connection_execute_no_es_ambiguo_pese_al_reexport(resolver):
     assert r.simbolo == "sqlalchemy.engine.Connection.execute"
 
 
+def test_metodos_heredados_resuelven_p_ej_cursorresult_fetchall(resolver):
+    """fetchall y scalar viven en Result, no en CursorResult (que hereda sin
+    sobreescribir). Antes del fix de herencia, el extractor solo miraba
+    vars(clase) propia y esto daba NoEncontrado pese a existir de verdad.
+    Encontrado usando Faro contra sí mismo (dogfooding)."""
+    for consulta in ["CursorResult.fetchall", "CursorResult.scalar"]:
+        r = resolver.buscar_doc("sqlalchemy", "2.0.36", consulta)
+        assert isinstance(r, Fragmento), f"{consulta} existe de verdad (heredado de Result)"
+        assert r.simbolo == f"sqlalchemy.engine.{consulta}"
+
+
 def test_verificar_simbolos_contra_sqlalchemy_real(resolver):
     r = resolver.verificar_simbolos(
         "sqlalchemy", "2.0.36", ["Session.get", "Query.get", "Session.metodo_inventado"]
