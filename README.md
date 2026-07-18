@@ -85,6 +85,11 @@ export FARO_PYTHON=/ruta/a/investsim/.venv/bin/python
 
 Si no lo configurás, Faro lee su propio entorno y **te avisa en cada respuesta**.
 
+Funciona con **cualquier librería instalada**, no solo SQLAlchemy: SQLAlchemy
+tiene una lista curada de módulos (afinada para no traer ruido de dialectos
+internos o utilidades de testing); cualquier otra librería descubre sus
+submódulos automáticamente.
+
 ### Herramientas
 
 - `listar_versiones(libreria)` — qué versión está instalada de verdad.
@@ -108,6 +113,3 @@ uv run pytest -m contrato         # contra SQLAlchemy 2.0.36 real
 - Solo sabe de versiones **instaladas**. No inventa las que no están.
 - Solo paquetes Python. `node:sqlite` queda fuera por construcción.
 - Solo avisa de obsolescencia si la librería la **declara** con `.. deprecated::`.
-- Solo extrae métodos definidos **directamente** en la clase. Los heredados de una
-  superclase y no sobrescritos no aparecen (no camina el MRO) — no-objetivo explícito
-  de esta v1, no un bug.
