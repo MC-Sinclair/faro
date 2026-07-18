@@ -4,7 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Estado actual
 
-v1 implementada. Servidor MCP funcionando sobre stdio con tres herramientas.
+v1 implementada y **mejorada más allá del plan original**. Servidor MCP sobre stdio con
+tres herramientas. 88 tests (9 de contrato contra SQLAlchemy 2.0.36 real).
 
 **Comandos:**
 
@@ -18,19 +19,61 @@ uv run python -m faro.servidor   # arrancar el servidor
 
 **Entorno objetivo:** `FARO_PYTHON` apunta al intérprete del proyecto del usuario.
 Sin esa variable, Faro lee su propio entorno y lo advierte en cada respuesta.
+Ojo: `FARO_PYTHON=""` (vacío) se trata igual que no configurado — `.mcp.json` inyecta
+la variable siempre, y sin ese cuidado el fallback prometido no se dispararía.
 
 **La regla de oro al tocar este código:** el núcleo (`resolver.py`, `dominio.py`,
 `parseo.py`, `catalogo.py`) **no importa `subprocess`, ni `httpx`, ni `mcp`**. Si un
 test del núcleo necesita red o subprocesos, el diseño se rompió.
 
+## Mejoras post-v1 (2026-07-18)
+
+Cerrado el plan de 11 tareas, se hicieron seis cambios. Cuatro de ellos (marcados ⬤) son
+**la misma enfermedad**: Faro tenía el dato disponible y no lo mostraba, dando una
+respuesta falsamente tranquilizadora.
+
+| Qué | Commit | Detalle |
+|---|---|---|
+| ⬤ classmethods/staticmethods | `4ae1289` | El extractor solo miraba `inspect.isfunction`/`property`; `URL.create` (constructor canónico) daba "no existe" |
+| Re-exports duplicados | `5fb3b55` | `sqlalchemy.Connection` **es** `sqlalchemy.engine.Connection`; contarlos dos veces hacía que `Connection.execute` saliera "ambiguo" por error (variante: no es dato oculto, es el mismo símbolo contado dos veces) |
+| ⬤ Métodos heredados | `863af26` | El extractor no caminaba el `__mro__`; `CursorResult.fetchall` daba "no existe" (21 de 47 métodos invisibles en esa clase) |
+| ⬤ Firmas de función | `5663f87` | `inspect.signature()` estaba disponible y se descartaba; ahora `buscar_doc` y `verificar_simbolos` la muestran, sin `self`/`cls`. (Mejora, no defecto — pero el mismo patrón: el dato estaba ahí.) |
+| ⬤ Deprecaciones en ambigüedad | `cb95ca9` | Una consulta ambigua descartaba TODA la info de deprecación: `get` decía solo "existe" callando que 2 de 8 candidatos son legacy |
+| Catálogo automático | `6249ca9` | Amplía alcance, no arregla un defecto: funciona con **cualquier librería instalada**, no solo SQLAlchemy (ver sección propia abajo) |
+
+Los cuatro últimos tienen spec en `docs/superpowers/specs/2026-07-18-*`. Los dos primeros
+no: salieron de la revisión final del branch y de una sesión de dogfooding, y se
+arreglaron en el momento.
+
+**El patrón que los encontró todos: dogfooding.** Ninguno lo encontraron los tests —
+salieron de arrancar el servidor real y preguntarle por su propia dependencia, y de
+simular casos de uso concretos. Si vas a tocar Faro, **usalo contra sí mismo antes y
+después**; es el método que más defectos reales produjo en este proyecto:
+
+```bash
+PYTHONIOENCODING=utf-8 uv run python -c "
+import sys; sys.path.insert(0,'src')
+from faro.fuentes.local import FuenteLocal
+from faro.resolver import ResolverDeDocs
+from faro.presentacion import formatear
+r = ResolverDeDocs(FuenteLocal(python=sys.executable))
+print(formatear(r.buscar_doc('sqlalchemy','2.0.36','Session.execute')))
+"
+```
+
+(El `PYTHONIOENCODING=utf-8` hace falta en Windows: la consola es cp1252 y el `⚠` de los
+avisos de deprecación la revienta.)
+
 ## Qué es Faro (definición final, no la del README)
 
 Un servidor MCP que **lee los docstrings del paquete de Python realmente instalado en el venv del
-proyecto del usuario** y responde con la versión exacta, el símbolo cualificado, y cualquier aviso
-de deprecación que la propia librería declare. No busca en la web. No tiene caché. El artefacto
-instalado es la fuente de verdad.
+proyecto del usuario** y responde con la versión exacta, el símbolo cualificado, su firma, y
+cualquier aviso de deprecación que la propia librería declare. No busca en la web. No tiene caché.
+El artefacto instalado es la fuente de verdad.
 
-Librería objetivo de la v1: **SQLAlchemy 2.x**, ya con el paquete verificado localmente (`2.0.36`).
+Librería de referencia: **SQLAlchemy 2.x** (`2.0.36` verificada localmente, y es contra la que
+corren los tests de contrato). Pero desde `6249ca9` funciona con **cualquier librería instalada**
+— ver "Catálogo automático" abajo.
 
 ## Las cinco decisiones cerradas, y por qué (esto YA NO es material de brainstorming)
 
@@ -42,7 +85,8 @@ Librería objetivo de la v1: **SQLAlchemy 2.x**, ya con el paquete verificado lo
    introspeccionar un paquete Python en proceso** — esto resultó ser la razón decisiva, ver punto 4.
 3. **SQLAlchemy 2.x** como librería objetivo, no FastAPI ni `node:sqlite` ni la API de Claude. Motivo:
    es la única candidata donde el anclaje de versión es *comprobable* — 1.4/2.0/2.1 tienen APIs
-   distintas y hay dolor real de InvestSim.
+   distintas y hay dolor real de InvestSim. *(Sigue siendo la librería de referencia y la que
+   cubren los tests de contrato, pero ya no es la única soportada: ver "Catálogo automático".)*
 4. **Fuente = paquete instalado (introspección), no la web.** Este cambió respecto al diseño original
    del README (que asumía scraping de `docs.sqlalchemy.org` + su `objects.inv`). Se descartó tras
    comparar con datos reales: el paquete instalado da versión **exacta** (`2.0.36` vs. `2.0`),
@@ -66,6 +110,12 @@ herramienta que la previene. Por eso:
 - Si al implementar algo "parece que un símbolo ya no existe en la nueva versión", **verificar contra
   el paquete real antes de asumirlo** — puede estar deprecado, no ausente.
 
+**Y resultó no ser un incidente aislado: es el modo de fallo recurrente del proyecto.** Los
+arreglos post-v1 son variantes de lo mismo — Faro afirmando "no existe" sobre API real
+(`URL.create`, `CursorResult.fetchall`), o diciendo "existe" a secas sobre API deprecada. Regla
+práctica al tocar el extractor o el resolver: **una respuesta que tranquiliza es más sospechosa que
+una que alarma.** El falso negativo silencioso es el enemigo, no el falso positivo ruidoso.
+
 ## El giro central de diseño: `version` es una afirmación, no una petición
 
 `buscar_doc` y `verificar_simbolos` exigen `version` sin default (regla nº1 de la spec). Pero el
@@ -85,6 +135,25 @@ sobre la API —de Context7, de un blog, o de la memoria del propio modelo— co
 Faro no compite en cobertura (pierde); compite en certeza (ahí gana, porque es el único que mira el
 venv real).
 
+## Catálogo automático: cómo Faro sabe qué módulos escanear
+
+Diseño **híbrido** (`6249ca9`):
+
+- **SQLAlchemy tiene una entrada curada** en `catalogo.py` (11 módulos elegidos a mano). Gana
+  siempre que exista: evita el ruido de dialectos internos, utilidades de testing, etc.
+- **Cualquier otra librería se descubre sola.** `local.py` manda `modulos: null` al extractor, y
+  `extractor.py` camina los submódulos públicos con `pkgutil.walk_packages` (excluye cualquiera
+  con un `_` inicial en algún segmento).
+
+**Por qué el descubrimiento vive en `extractor.py` y no en `local.py`:** `local.py` corre en el
+proceso de Faro, que **no tiene instalada** la librería del proyecto objetivo — no puede importarla
+para inspeccionar su `__path__`. Solo el subproceso puede. Si vas a tocar esto, ese es el motivo.
+
+**Consecuencia de diseño ya aplicada:** se eliminó el gate de catálogo del resolver
+(`_verificar_catalogo`). Ya no existe una "lista cerrada de librerías conocidas", así que el único
+camino de fallo es el honesto: *"'X' no está instalada en el entorno objetivo."* `ResolverDeDocs`
+ya no recibe un parámetro `catalogo`, y `catalogo.py` hoy solo lo consume `local.py`.
+
 ## Arquitectura (ya no tentativa — ver la spec para el diagrama completo)
 
 Dependency Rule. El núcleo (`resolver.py`, `dominio.py`, `parseo.py`, `catalogo.py`) **no importa
@@ -97,29 +166,65 @@ Faro). Tests usan `FuenteFake` con datos reales de SQLAlchemy 2.0.36 congelados 
 Regla dura para cualquier cambio futuro: **si un test del núcleo necesita red o subprocesos, el
 diseño se rompió.**
 
+**`FuenteFake` discrimina por librería.** Antes devolvía la misma versión para cualquier nombre;
+funcionaba solo porque el gate de catálogo interceptaba lo desconocido antes de llegar a ella. Sin
+ese gate, la fake tiene que distinguir sola su librería (`libreria="sqlalchemy"` por defecto) —
+si agregás tests con otras librerías, pasale el parámetro.
+
 ## graphify
 
-`graphify-out/` existe pero está **vacío** (solo `cache/`, sin `graph.json`): se corrió
-`graphify extract . --code-only` antes de escribir código, y con 0 archivos de código dio
-"graph is empty" (exit 1). Es esperado — no es un fallo a investigar.
+Grafo generado y funcionando: `graphify-out/graph.json` (201 nodos, 333 edges sobre 27 archivos
+de código). Hay un `.graphifyignore` propio en la raíz, copiado del patrón de los proyectos
+hermanos (excluye `*.json`, `*.md`, `*.lock` — sin eso, cada clave de un archivo de config se
+vuelve un nodo y ahoga la señal real).
 
-**Si después de generar o modificar código (Task 1 en adelante) `graphify-out/` sigue sin
-`graph.json` / los demás `.json`** (ya sea porque el hook de `update` no corrió, o corrió antes
-de que el código existiera, o falló en silencio), **relanzar a mano**:
+`graphify-out/` está en `.gitignore`: no se comitea, así que su ausencia tras un `git pull` /
+`checkout` es normal. Regenerarlo con:
 
 ```bash
 graphify extract . --code-only
 ```
 
-`graphify-out/` está en `.gitignore`: no se comitea, así que su ausencia tras un `git pull` /
-`checkout` también es normal — hay que regenerarlo con el comando de arriba.
+**No correr `graphify install --project`.** Se probó y hace dos cosas no deseadas: instala hooks
+en `.claude/` (que ningún proyecto hermano tiene) y **sobrescribe esta sección del CLAUDE.md con
+texto genérico en inglés**, rompiendo la convención de "todo en español". Se revirtió.
 
-## No-objetivos explícitos de la v1 (no proponer estas features sin pasar por brainstorming)
+## No-objetivos explícitos (no proponer estas features sin pasar por brainstorming)
 
 - Nada de búsqueda en prosa/tutoriales/guías de migración — solo referencia de API.
 - Nada de versiones no instaladas — Faro puede sugerir instalarlas, nunca inventa su contenido.
-- Nada de librerías no-Python (`node:sqlite` queda fuera por construcción de esta v1).
+- Nada de librerías no-Python (`node:sqlite` queda fuera por construcción).
 - No juzga idiomaticidad más allá de lo que la librería declara con `.. deprecated::`.
+- **Nada de inferencia de tipos.** Decisión explícita: sería escribir un mini type-checker, y crea
+  un lugar nuevo donde Faro podría inferir mal y afirmar algo falso con confianza — justo lo que
+  el proyecto existe para evitar.
+
+*(Ya no son no-objetivos: métodos heredados, firmas de función y librerías fuera del catálogo —
+los tres se implementaron. Si el README o un spec viejo dice lo contrario, está desactualizado.)*
+
+## `verificar_codigo`: diseñado, evaluado y **puesto en pausa a propósito**
+
+Se diseñó una cuarta herramienta que recibiría un bloque de código y auditaría sus llamadas contra
+el paquete instalado. **No se construyó, y la decisión fue deliberada** — no la retomes sin leer
+esto:
+
+1. **Falla el caso fundacional.** Sin inferencia de tipos (que es no-objetivo, ver arriba),
+   `session.query(User).get(5)` produce las consultas `query` y `get` — ambas ambiguas. Antes del
+   fix `cb95ca9` eso respondía "existe" a secas, callando la deprecación de `Query.get`: la
+   herramienta habría fallado exactamente en el caso que le da sentido al proyecto.
+2. **Descarta información que quien llama ya tiene.** Un asistente leyendo
+   `session.query(User).get(5)` ya sabe que eso es `Query.get`, y puede preguntar por el nombre
+   calificado — obteniendo una respuesta precisa con su deprecación, en vez de "ambiguo entre 8".
+   El análisis AST sin tipos *pierde* precisión respecto de preguntar bien.
+3. **No cierra el agujero que la motivaba.** El modo de fallo que Faro combate es el asistente que
+   está seguro y por eso *no pregunta*. Una herramienta que hay que invocar a mano tiene el mismo
+   agujero. Eso lo cierra un hook o una regla de workflow, no la existencia de la herramienta.
+
+**Si se retoma, el orden correcto es: primero el disparador automático, después la herramienta.**
+
+Nota valiosa: el ejercicio de diseñarla no se desperdició — simular su comportamiento sobre el caso
+fundacional fue lo que destapó el defecto de deprecaciones-en-ambigüedad (`cb95ca9`), que ya estaba
+en producción.
 
 ## Convenciones
 
