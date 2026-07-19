@@ -34,12 +34,15 @@ class EntradaSimbolo:
     """Un símbolo tal como lo devuelve una FuenteDeDocs, sin interpretar.
 
     `doc` puede ser None: hay símbolos que existen y no declaran documentación.
-    No tener doc no es no existir.
+    No tener doc no es no existir. `modulo_origen` es la raíz de __module__ del
+    objeto: la librería que REALMENTE lo define, que puede no ser la librería
+    consultada (p. ej. pathlib.Path importado dentro de otro paquete).
     """
 
     nombre: str
     doc: str | None
     deprecacion: Deprecacion | None
+    modulo_origen: str
     firma: str | None = None
 
 
@@ -50,6 +53,11 @@ class Fragmento:
     `texto` puede ser None (símbolo sin documentación declarada) — no debilita la
     regla 2: la garantía estructural es sobre libreria/version/simbolo, y `texto`
     sigue siendo obligatorio de construir, solo que su valor puede ser nulo.
+    `modulo_origen` es la librería que REALMENTE define `simbolo` (raíz de
+    __module__): puede ser distinta de `libreria` cuando el símbolo solo está
+    importado ahí, no definido (p. ej. pathlib.Path dentro de otro paquete). Es
+    obligatorio, igual que libreria/version/simbolo: nunca hay Fragmento sin
+    saber de dónde sale de verdad el símbolo.
     """
 
     libreria: str
@@ -57,6 +65,7 @@ class Fragmento:
     simbolo: str
     texto: str | None
     deprecacion: Deprecacion | None
+    modulo_origen: str
     firma: str | None = None
 
 
@@ -89,6 +98,9 @@ class Verificacion:
     está deprecado". `deprecados` (plural) es "algunas de las varias cosas que tu
     consulta podría significar lo están" — situaciones distintas, y en la segunda
     puede haber varios reemplazos, así que colapsarlas obligaría a elegir uno.
+    `modulo_origen` sigue el mismo patrón que `firma`/`resuelto_como`: solo tiene
+    sentido cuando la consulta resolvió a un único símbolo, así que es None en
+    los casos "no existe" y "ambiguo" (no hay un origen único que afirmar).
     """
 
     simbolo: str
@@ -96,4 +108,5 @@ class Verificacion:
     resuelto_como: str | None
     deprecacion: Deprecacion | None
     firma: str | None = None
+    modulo_origen: str | None = None
     deprecados: list[CandidatoDeprecado] = field(default_factory=list)

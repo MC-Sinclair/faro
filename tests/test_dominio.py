@@ -17,6 +17,7 @@ def test_un_fragmento_lleva_su_procedencia_dentro():
         simbolo="sqlalchemy.orm.Session.execute",
         texto="Execute a SQL expression construct.",
         deprecacion=None,
+        modulo_origen="sqlalchemy",
     )
     assert f.libreria == "sqlalchemy"
     assert f.version == "2.0.36"
@@ -30,6 +31,7 @@ def test_un_fragmento_es_inmutable():
         simbolo="x.y",
         texto="doc",
         deprecacion=None,
+        modulo_origen="sqlalchemy",
     )
     with pytest.raises(FrozenInstanceError):
         f.version = "1.4"  # type: ignore[misc]
@@ -45,3 +47,18 @@ def test_no_encontrado_siempre_explica_el_motivo():
 def test_ambiguo_lista_los_candidatos_y_no_elige():
     a = Ambiguo(consulta="select", candidatos=["a.select", "b.select"])
     assert len(a.candidatos) == 2
+
+
+def test_un_fragmento_declara_su_origen_real():
+    """El caso que funda esta spec: un símbolo puede existir bajo una librería
+    sin ser SUYO — Faro debe poder decir cuál es su origen real."""
+    f = Fragmento(
+        libreria="faro",
+        version="0.1.0",
+        simbolo="faro.fuentes.local.Path.cwd",
+        texto="doc",
+        deprecacion=None,
+        modulo_origen="pathlib",
+    )
+    assert f.modulo_origen == "pathlib"
+    assert f.modulo_origen != f.libreria
