@@ -2,19 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## ⏭️ PENDIENTE — arrancá por acá
-
-**Hay un defecto confirmado y sin arreglar: Faro atribuye a una librería símbolos que
-no son suyos.** Está diagnosticado, medido y con el arreglo pre-verificado. No hace
-falta re-investigar: leé la sección "Símbolos ajenos" al final de este archivo y
-diseñá/implementá desde ahí.
-
-Todo lo demás está commiteado y con el working tree limpio.
-
 ## Estado actual
 
 v1 implementada y **mejorada más allá del plan original**. Servidor MCP sobre stdio con
-tres herramientas. 95 tests (11 de contrato: SQLAlchemy 2.0.36 real + Faro sobre Faro).
+tres herramientas. 112 tests (13 de contrato: SQLAlchemy 2.0.36 real + Faro sobre Faro).
 
 **Comandos:**
 
@@ -49,10 +40,12 @@ respuesta falsamente tranquilizadora.
 | ⬤ Firmas de función | `5663f87` | `inspect.signature()` estaba disponible y se descartaba; ahora `buscar_doc` y `verificar_simbolos` la muestran, sin `self`/`cls`. (Mejora, no defecto — pero el mismo patrón: el dato estaba ahí.) |
 | ⬤ Deprecaciones en ambigüedad | `cb95ca9` | Una consulta ambigua descartaba TODA la info de deprecación: `get` decía solo "existe" callando que 2 de 8 candidatos son legacy |
 | Catálogo automático | `6249ca9` | Amplía alcance, no arregla un defecto: funciona con **cualquier librería instalada**, no solo SQLAlchemy (ver sección propia abajo) |
+| ⬤ Símbolos ajenos | `PENDIENTE_HASH` | Faro se atribuía símbolos solo importados, no definidos (`pathlib.Path`, `mcp.FastMCP`): 71% del catálogo de Faro, 1,4% del de SQLAlchemy. No se filtran (rompería `pydantic.ValidationError`, definida en `pydantic_core`): se anota el origen real (`modulo_origen`) en cada símbolo, propagado hasta el texto |
 
-Los cuatro últimos tienen spec en `docs/superpowers/specs/2026-07-18-*`. Los dos primeros
-no: salieron de la revisión final del branch y de una sesión de dogfooding, y se
-arreglaron en el momento.
+Los cuatro del medio tienen spec en `docs/superpowers/specs/2026-07-18-*`; el último
+(símbolos ajenos) tiene la suya en `docs/superpowers/specs/2026-07-19-faro-simbolos-ajenos-design.md`.
+Los dos primeros de la tabla no tienen spec: salieron de la revisión final del branch y
+de una sesión de dogfooding, y se arreglaron en el momento.
 
 **El patrón que los encontró todos: dogfooding.** Ninguno lo encontraron los tests —
 salieron de arrancar el servidor real y preguntarle por su propia dependencia, y de
@@ -241,109 +234,3 @@ en producción.
   `verificar_simbolos`), mensajes al usuario, commits.
 - Python `>=3.12`, gestionado con `uv` (no `pip`/`venv` a mano).
 - Commits en español, formato imperativo, con `Co-Authored-By` cuando los genera Claude.
-
----
-
-# ⏭️ PENDIENTE: símbolos ajenos atribuidos a la librería
-
-**Estado: diagnosticado y medido el 2026-07-18, NO implementado.** Todo lo de abajo ya
-está verificado — no hace falta re-investigarlo, se puede pasar directo a diseñar.
-
-## El defecto
-
-Faro atribuye a una librería símbolos que **no son de esa librería**, sino que solo
-están importados en alguno de sus módulos. Reproducción exacta:
-
-```bash
-PYTHONIOENCODING=utf-8 uv run python -c "
-import sys; sys.path.insert(0,'src')
-from faro.fuentes.local import FuenteLocal
-from faro.resolver import ResolverDeDocs
-from faro.presentacion import formatear_verificaciones
-r = ResolverDeDocs(FuenteLocal(python=sys.executable))
-print(formatear_verificaciones(r.verificar_simbolos('faro','0.1.0',['Path.cwd','FastMCP.run'])))
-"
-```
-
-Devuelve:
-
-```
-Path.cwd: existe (faro.fuentes.local.Path.cwd) — cwd()
-FastMCP.run: existe (faro.servidor.FastMCP.run) — run(transport=...)
-```
-
-`Path` es `pathlib.Path` (stdlib) y `FastMCP` es del SDK de `mcp`. Ninguno es de Faro.
-
-**Causa:** `extraer()` en `extractor.py` recorre `vars(modulo)` y toma toda clase o
-función pública, sin distinguir si el objeto fue **definido** en esa librería o solo
-**importado** ahí (`local.py` hace `from pathlib import Path`).
-
-## Por qué importa (y por qué es distinto a los seis anteriores)
-
-Los seis defectos ya corregidos eran **falsos negativos**: Faro negando API real. Este
-es un **falso positivo**: Faro afirmando API que no es de la librería. Es la imagen
-espejo, y golpea la Regla 2 de frente — la cita `faro 0.1.0 :: Path.cwd` es
-sencillamente falsa. La versión de Faro no dice nada sobre `pathlib`, que se versiona
-con Python. Un consumidor que confíe en esa cita para anclar una versión, se equivoca.
-
-## Medición (ya hecha, no repetir)
-
-| Librería | Símbolos ajenos |
-|---|---|
-| SQLAlchemy | 7 de 498 (**1,4%**) — todos de `typing`/`typing_extensions` |
-| **Faro** | 92 de 129 (**71%**) — `pathlib.Path` + `mcp.FastMCP` |
-
-Mismo patrón que el defecto de docstrings (`4e7e872`): SQLAlchemy es excepcionalmente
-disciplinada, la librería típica no lo es. **El catálogo automático (`6249ca9`) es lo
-que vuelve esto relevante** — con cualquier librería instalada en juego, el 71% es más
-representativo que el 1,4%.
-
-## El arreglo propuesto, con verificación previa
-
-Filtrar por `__module__`: registrar solo símbolos cuyo módulo de definición pertenezca
-a la librería consultada.
-
-```python
-def _es_propio(objeto: object, libreria: str) -> bool:
-    origen = getattr(objeto, "__module__", "") or ""
-    return origen.split(".")[0] == libreria
-```
-
-Ya verificado contra los símbolos clave — **no se lleva puesto nada legítimo**:
-
-```
-Session, Query, Connection, Engine, URL, CursorResult  -> sobreviven ✓
-ResolverDeDocs, Fragmento                              -> sobreviven ✓
-pathlib.Path                                           -> se filtra  ✓
-```
-
-(`Session.__module__` es `sqlalchemy.orm.session`, así que comparar el primer
-componente basta; no alcanza con comparar el módulo completo.)
-
-## Trade-off honesto — decidir antes de implementar
-
-Hay librerías que re-exportan cosas de terceros **a propósito**, como parte declarada
-de su API pública. Con este filtro, esas desaparecerían del catálogo.
-
-Argumento a favor de filtrar igual: si `X` viene de otra librería, es *esa* librería la
-que responde por su versión y sus deprecaciones — que es exactamente lo que Faro
-promete citar. Atribuirla a la librería equivocada es peor que no tenerla.
-
-Pero es un trade-off real, no una obviedad: **preguntar al usuario antes de asumirlo.**
-
-## Cosas a cuidar al implementar
-
-- `__module__` puede faltar o ser raro en extensiones C y en algunos builtins — de ahí
-  el `getattr(..., "") or ""`.
-- El filtro va en `extraer()` (`extractor.py`), donde ya está el bucle de `vars(modulo)`.
-  Interactúa con la deduplicación por identidad ya existente: conviene filtrar **antes**
-  de reclamar el nombre en `nombre_elegido`, para no gastar el "primer módulo gana" en
-  un objeto que después se descarta.
-- Los métodos heredados complican un poco: `_anotar_miembros` camina el `__mro__`, y una
-  clase propia puede heredar de una ajena (p. ej. algo que herede de `dict`). Decidir si
-  los métodos heredados de una base ajena cuentan como propios de la clase que los
-  hereda — probablemente **sí**, porque desde el punto de vista del usuario
-  `MiClase.metodo_heredado` sí es parte de la superficie de `MiClase`. Distinto del caso
-  `Path`, donde la clase entera es ajena.
-- Test de contrato natural: `verificar_simbolos('faro', <version>, ['Path.cwd'])` debe
-  dar NO EXISTE, y `ResolverDeDocs.buscar_doc` debe seguir existiendo.
