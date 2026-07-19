@@ -17,6 +17,7 @@ def test_la_cita_siempre_aparece():
         simbolo="sqlalchemy.orm.Session.execute",
         texto="Execute a SQL expression construct.",
         deprecacion=None,
+        modulo_origen="sqlalchemy",
     )
     salida = formatear(f)
     assert "sqlalchemy 2.0.36" in salida
@@ -30,6 +31,7 @@ def test_la_deprecacion_se_grita_no_se_susurra():
         simbolo="sqlalchemy.orm.Query.get",
         texto="Return an instance...",
         deprecacion=Deprecacion(desde="2.0", mensaje="legacy", reemplazo="Session.get"),
+        modulo_origen="sqlalchemy",
     )
     salida = formatear(f)
     assert "DEPRECADO" in salida
@@ -49,6 +51,7 @@ def test_recorta_los_docstrings_gigantes():
         simbolo="sqlalchemy.orm.Session",
         texto="x" * 20_000,
         deprecacion=None,
+        modulo_origen="sqlalchemy",
     )
     salida = formatear(f)
     assert len(salida) < TOPE_CARACTERES + 500
@@ -71,7 +74,7 @@ def test_las_verificaciones_marcan_lo_que_no_existe():
         Verificacion(simbolo="Session.execute", existe=True, resuelto_como="x.Session.execute", deprecacion=None),
         Verificacion(simbolo="Session.inventado", existe=False, resuelto_como=None, deprecacion=None),
     ]
-    salida = formatear_verificaciones(vs)
+    salida = formatear_verificaciones(vs, libreria="x")
     assert "NO EXISTE" in salida
 
 
@@ -82,6 +85,7 @@ def test_la_firma_aparece_si_esta_presente():
         simbolo="sqlalchemy.orm.Session.execute",
         texto="Execute a SQL expression construct.",
         deprecacion=None,
+        modulo_origen="sqlalchemy",
         firma="(statement, parameters=None)",
     )
     salida = formatear(f)
@@ -96,6 +100,7 @@ def test_sin_firma_no_agrega_ninguna_linea_de_mas():
         simbolo="sqlalchemy.orm.Session.execute",
         texto="Execute a SQL expression construct.",
         deprecacion=None,
+        modulo_origen="sqlalchemy",
     )
     sin_firma = formatear(Fragmento(**con_datos_comunes, firma=None))
     explicito_none = formatear(Fragmento(**con_datos_comunes))
@@ -112,7 +117,7 @@ def test_la_firma_aparece_en_las_verificaciones():
             firma="(statement, parameters=None)",
         ),
     ]
-    salida = formatear_verificaciones(vs)
+    salida = formatear_verificaciones(vs, libreria="sqlalchemy")
     assert "(statement, parameters=None)" in salida
 
 
@@ -120,7 +125,7 @@ def test_verificacion_sin_firma_no_agrega_nada_de_mas():
     con_firma_none = Verificacion(
         simbolo="Session.execute", existe=True, resuelto_como="x.Session.execute", deprecacion=None
     )
-    assert formatear_verificaciones([con_firma_none]) == "Session.execute: existe (x.Session.execute)"
+    assert formatear_verificaciones([con_firma_none], libreria="x") == "Session.execute: existe (x.Session.execute)"
 
 
 def test_un_simbolo_sin_documentacion_lo_dice_y_conserva_cita_y_firma():
@@ -130,6 +135,7 @@ def test_un_simbolo_sin_documentacion_lo_dice_y_conserva_cita_y_firma():
         simbolo="faro.resolver.ResolverDeDocs.buscar_doc",
         texto=None,
         deprecacion=None,
+        modulo_origen="faro",
         firma="(libreria: str, version: str, consulta: str)",
     )
     salida = formatear(f)
@@ -147,6 +153,7 @@ def test_con_texto_la_salida_no_cambia():
         simbolo="sqlalchemy.orm.Session.execute",
         texto="Execute a SQL expression construct.",
         deprecacion=None,
+        modulo_origen="sqlalchemy",
     )
     assert "no declara documentación" not in formatear(f)
 
@@ -189,8 +196,62 @@ def test_la_verificacion_ambigua_nombra_los_deprecados():
                 deprecacion=None,
                 deprecados=[_query_get_deprecado()],
             )
-        ]
+        ],
+        libreria="sqlalchemy",
     )
     assert "DEPRECADO" in salida
     assert "sqlalchemy.orm.Query.get" in salida
     assert "Session.get" in salida  # el reemplazo
+
+
+def test_fragmento_propio_dice_definido_en_su_propia_libreria():
+    f = Fragmento(
+        libreria="sqlalchemy",
+        version="2.0.36",
+        simbolo="sqlalchemy.orm.Session.execute",
+        texto="doc",
+        deprecacion=None,
+        modulo_origen="sqlalchemy",
+    )
+    salida = formatear(f)
+    assert "definido en: sqlalchemy 2.0.36" in salida
+
+
+def test_fragmento_ajeno_dice_de_donde_viene_de_verdad():
+    """El caso fundacional de esta spec: Path.cwd existe en faro pero no es
+    de faro — la cita no debe mentir sobre quién lo define."""
+    f = Fragmento(
+        libreria="faro",
+        version="0.1.0",
+        simbolo="faro.fuentes.local.Path.cwd",
+        texto="doc",
+        deprecacion=None,
+        modulo_origen="pathlib",
+    )
+    salida = formatear(f)
+    assert "definido en: pathlib (no en faro 0.1.0)" in salida
+
+
+def test_verificacion_propia_no_agrega_sufijo_de_origen():
+    v = Verificacion(
+        simbolo="Session.execute",
+        existe=True,
+        resuelto_como="sqlalchemy.orm.Session.execute",
+        deprecacion=None,
+        modulo_origen="sqlalchemy",
+    )
+    assert formatear_verificaciones([v], libreria="sqlalchemy") == (
+        "Session.execute: existe (sqlalchemy.orm.Session.execute)"
+    )
+
+
+def test_verificacion_ajena_agrega_el_origen():
+    v = Verificacion(
+        simbolo="Path.cwd",
+        existe=True,
+        resuelto_como="faro.fuentes.local.Path.cwd",
+        deprecacion=None,
+        modulo_origen="pathlib",
+    )
+    salida = formatear_verificaciones([v], libreria="faro")
+    assert "definido en pathlib, no en faro" in salida

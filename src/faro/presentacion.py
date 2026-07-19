@@ -48,6 +48,11 @@ def formatear(r: Fragmento | Ambiguo | NoEncontrado) -> str:
 
     lineas = [f"{r.libreria} {r.version} :: {r.simbolo}"]
 
+    if r.modulo_origen == r.libreria:
+        lineas.append(f"definido en: {r.libreria} {r.version}")
+    else:
+        lineas.append(f"definido en: {r.modulo_origen} (no en {r.libreria} {r.version})")
+
     if r.deprecacion is not None:
         lineas.append(_aviso_de_deprecacion(r.deprecacion).lstrip())
 
@@ -62,7 +67,7 @@ def formatear(r: Fragmento | Ambiguo | NoEncontrado) -> str:
     return "\n".join(lineas)
 
 
-def formatear_verificaciones(vs: list[Verificacion]) -> str:
+def formatear_verificaciones(vs: list[Verificacion], libreria: str) -> str:
     lineas = []
     for v in vs:
         if not v.existe:
@@ -88,6 +93,8 @@ def formatear_verificaciones(vs: list[Verificacion]) -> str:
             linea += f" — ⚠ {len(v.deprecados)} candidatos DEPRECADOS: {detalles}"
         if v.firma is not None and v.resuelto_como is not None:
             linea += f" — {v.resuelto_como.rsplit('.', 1)[-1]}{v.firma}"
+        if v.modulo_origen is not None and v.modulo_origen != libreria:
+            linea += f" — definido en {v.modulo_origen}, no en {libreria}"
         lineas.append(linea)
     return "\n".join(lineas)
 

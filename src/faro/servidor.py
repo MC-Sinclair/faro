@@ -68,7 +68,7 @@ def verificar_simbolos(libreria: str, version: str, simbolos: list[str]) -> str:
     r = _resolver.verificar_simbolos(libreria, version, simbolos)
     if not isinstance(r, list):
         return formatear(r) + _aviso_de_entorno()
-    return formatear_verificaciones(r) + _aviso_de_entorno()
+    return formatear_verificaciones(r, libreria) + _aviso_de_entorno()
 
 
 def main() -> None:
