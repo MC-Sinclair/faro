@@ -130,3 +130,25 @@ def test_verificar_simbolos_contra_sqlalchemy_real(resolver):
     assert por_nombre["Query.get"].deprecacion is not None
 
     assert not por_nombre["Session.metodo_inventado"].existe
+
+
+def test_faro_no_se_atribuye_pathlib(resolver):
+    """El defecto que funda esta spec: Faro decía que Path.cwd era suyo.
+    pathlib.Path solo está importado en faro.fuentes.local, no definido ahí."""
+    version = resolver.listar_versiones("faro")
+    assert not isinstance(version, NoEncontrado)
+
+    v = resolver.verificar_simbolos("faro", version[0], ["Path.cwd"])
+    assert v[0].existe
+    assert v[0].modulo_origen == "pathlib"
+    assert v[0].modulo_origen != "faro"
+
+
+def test_sqlalchemy_marca_los_pocos_simbolos_realmente_ajenos(resolver):
+    """Any es de typing, no de sqlalchemy, aunque sqlalchemy lo re-exporte.
+    Confirma la medición de la spec: SQLAlchemy es mayormente propia (~1,4%
+    ajeno) frente al 71% de Faro."""
+    r = resolver.buscar_doc("sqlalchemy", "2.0.36", "Any")
+    assert isinstance(r, Fragmento)
+    assert r.simbolo == "sqlalchemy.orm.Any"
+    assert r.modulo_origen == "typing"
