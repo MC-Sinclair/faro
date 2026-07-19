@@ -40,7 +40,7 @@ respuesta falsamente tranquilizadora.
 | ⬤ Firmas de función | `5663f87` | `inspect.signature()` estaba disponible y se descartaba; ahora `buscar_doc` y `verificar_simbolos` la muestran, sin `self`/`cls`. (Mejora, no defecto — pero el mismo patrón: el dato estaba ahí.) |
 | ⬤ Deprecaciones en ambigüedad | `cb95ca9` | Una consulta ambigua descartaba TODA la info de deprecación: `get` decía solo "existe" callando que 2 de 8 candidatos son legacy |
 | Catálogo automático | `6249ca9` | Amplía alcance, no arregla un defecto: funciona con **cualquier librería instalada**, no solo SQLAlchemy (ver sección propia abajo) |
-| ⬤ Símbolos ajenos | `PENDIENTE_HASH` | Faro se atribuía símbolos solo importados, no definidos (`pathlib.Path`, `mcp.FastMCP`): 71% del catálogo de Faro, 1,4% del de SQLAlchemy. No se filtran (rompería `pydantic.ValidationError`, definida en `pydantic_core`): se anota el origen real (`modulo_origen`) en cada símbolo, propagado hasta el texto |
+| ⬤ Símbolos ajenos | `aa5af95` | Faro se atribuía símbolos solo importados, no definidos (`pathlib.Path`, `mcp.FastMCP`): 71% del catálogo de Faro, 1,4% del de SQLAlchemy. No se filtran (rompería `pydantic.ValidationError`, definida en `pydantic_core`): se anota el origen real (`modulo_origen`) en cada símbolo, propagado hasta el texto |
 
 Los cuatro del medio tienen spec en `docs/superpowers/specs/2026-07-18-*`; el último
 (símbolos ajenos) tiene la suya en `docs/superpowers/specs/2026-07-19-faro-simbolos-ajenos-design.md`.
