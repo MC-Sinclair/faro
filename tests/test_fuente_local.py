@@ -1,5 +1,7 @@
+import os
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -60,3 +62,18 @@ def test_salida_no_json_del_extractor_falla_explicitamente(fuente, monkeypatch):
     monkeypatch.setattr(subprocess, "run", _run_falso)
     with pytest.raises(RuntimeError, match="no-JSON"):
         fuente.version_instalada("textwrap")
+
+
+def test_modulo_origen_distingue_lo_propio_de_lo_ajeno(monkeypatch):
+    """Cableado completo extractor→FuenteLocal: BaseAjena vive en otro_paquete
+    pero se importa en paquete_prueba.base — su origen real debe llegar intacto
+    hasta EntradaSimbolo, distinto del origen de un símbolo genuinamente propio."""
+    fixtures = Path(__file__).parent / "fixtures_extractor_dedupe"
+    monkeypatch.setenv(
+        "PYTHONPATH", str(fixtures) + os.pathsep + os.environ.get("PYTHONPATH", "")
+    )
+    fuente = FuenteLocal(python=sys.executable)
+    por_nombre = {e.nombre: e for e in fuente.simbolos("paquete_prueba")}
+
+    assert por_nombre["paquete_prueba.base.Cosa.metodo"].modulo_origen == "paquete_prueba"
+    assert por_nombre["paquete_prueba.base.BaseAjena"].modulo_origen == "otro_paquete"

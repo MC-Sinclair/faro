@@ -32,6 +32,7 @@ class FuenteLocal:
                 nombre=s["nombre"],
                 doc=s["doc"],
                 firma=s.get("firma"),
+                modulo_origen=s["modulo_origen"],
                 deprecacion=extraer_deprecacion(s["doc"]),
             )
             for s in crudos
