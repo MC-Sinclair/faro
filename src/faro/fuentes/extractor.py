@@ -45,7 +45,7 @@ def version_de(libreria: str) -> str | None:
     return ".".join(str(n) for n in sys.version_info[:3])
 
 
-def extraer(modulos: list[str]) -> list[dict[str, str]]:
+def extraer(libreria: str, modulos: list[str]) -> list[dict[str, str]]:
     """Muchas librerías re-exportan la misma clase/función en el paquete raíz y en
     su submódulo real (p. ej. sqlalchemy.Connection es sqlalchemy.engine.Connection).
     Si contáramos ambas rutas como símbolos distintos, cualquier consulta sin
@@ -73,17 +73,37 @@ def extraer(modulos: list[str]) -> list[dict[str, str]]:
                 if id(objeto) in nombre_elegido:
                     continue  # re-export: ya se registró vía un módulo más específico
                 nombre_elegido[id(objeto)] = f"{nombre_modulo}.{nombre}"
-                _anotar(vistos, f"{nombre_modulo}.{nombre}", objeto)
-                _anotar_miembros(vistos, f"{nombre_modulo}.{nombre}", objeto)
+                origen = _raiz_modulo(objeto, libreria)
+                _anotar(vistos, f"{nombre_modulo}.{nombre}", objeto, modulo_origen=origen)
+                _anotar_miembros(vistos, f"{nombre_modulo}.{nombre}", objeto, origen)
             elif inspect.isfunction(objeto):
                 if id(objeto) in nombre_elegido:
                     continue
                 nombre_elegido[id(objeto)] = f"{nombre_modulo}.{nombre}"
-                _anotar(vistos, f"{nombre_modulo}.{nombre}", objeto)
+                origen = _raiz_modulo(objeto, libreria)
+                _anotar(vistos, f"{nombre_modulo}.{nombre}", objeto, modulo_origen=origen)
 
     return [
-        {"nombre": n, "doc": v["doc"], "firma": v["firma"]} for n, v in sorted(vistos.items())
+        {
+            "nombre": n,
+            "doc": v["doc"],
+            "firma": v["firma"],
+            "modulo_origen": v["modulo_origen"],
+        }
+        for n, v in sorted(vistos.items())
     ]
+
+
+def _raiz_modulo(objeto: object, libreria: str) -> str:
+    """Primer componente de __module__: la librería que define `objeto` de verdad.
+
+    Puede faltar o ser raro en extensiones C y algunos builtins — de ahí el
+    `getattr(..., "") or ""`. Sin `__module__` legible, no hay evidencia de que
+    el símbolo sea ajeno: se asume propio de `libreria` (el mismo trato que
+    tenía TODO símbolo antes de este cambio).
+    """
+    origen = (getattr(objeto, "__module__", "") or "").split(".")[0]
+    return origen or libreria
 
 
 def _firma_de(objeto: object) -> str | None:
@@ -105,7 +125,9 @@ def _firma_de(objeto: object) -> str | None:
     return str(firma)
 
 
-def _anotar_miembros(vistos: dict[str, dict[str, str | None]], nombre_clase: str, clase: type) -> None:
+def _anotar_miembros(
+    vistos: dict[str, dict[str, str | None]], nombre_clase: str, clase: type, origen_clase: str
+) -> None:
     """Recorre toda la cadena de herencia (__mro__), no solo vars(clase) propia.
 
     Un método heredado y no sobreescrito (p. ej. CursorResult.fetchall, que vive
@@ -115,6 +137,13 @@ def _anotar_miembros(vistos: dict[str, dict[str, str | None]], nombre_clase: str
     reproduce la misma regla de resolución de atributos de Python: una subclase
     que sobreescribe gana con su propio docstring; si no sobreescribe, gana la
     versión de la clase base donde el método realmente vive.
+
+    `origen_clase` es el origen YA calculado de la clase dueña (nombre_clase), y
+    se propaga a TODO miembro heredado sin recalcularlo por atributo: un método
+    heredado de una base ajena (p. ej. Path.cwd, con Path entero ajeno a quien
+    lo importa) se anota con el origen de la clase que lo expone, no con el
+    __module__ de la base física donde vive — decisión de diseño explícita, ver
+    docs/superpowers/specs/2026-07-19-faro-simbolos-ajenos-design.md.
     """
     ya_vistos: set[str] = set()
     for base in clase.__mro__:
@@ -131,6 +160,7 @@ def _anotar_miembros(vistos: dict[str, dict[str, str | None]], nombre_clase: str
                     vistos,
                     f"{nombre_clase}.{nombre_attr}",
                     attr,
+                    modulo_origen=origen_clase,
                     objeto_firma=getattr(base, nombre_attr),
                 )
 
@@ -139,6 +169,7 @@ def _anotar(
     vistos: dict[str, dict[str, str | None]],
     nombre: str,
     objeto_doc: object,
+    modulo_origen: str,
     objeto_firma: object | None = None,
 ) -> None:
     """Registra el símbolo exista o no su docstring.
@@ -156,6 +187,7 @@ def _anotar(
     vistos[nombre] = {
         "doc": doc,
         "firma": _firma_de(objeto_firma if objeto_firma is not None else objeto_doc),
+        "modulo_origen": modulo_origen,
     }
 
 
@@ -192,7 +224,7 @@ def main() -> None:
     if modulos is None:
         modulos = _descubrir_modulos(libreria) if version is not None else []
 
-    simbolos = extraer(modulos) if version is not None else []
+    simbolos = extraer(libreria, modulos) if version is not None else []
 
     json.dump({"version": version, "simbolos": simbolos}, sys.stdout)
 

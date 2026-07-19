@@ -22,3 +22,11 @@ class SinDocumentar:
 
     def metodo_sin_doc(self, cuantos: int = 3) -> str:
         return "x" * cuantos
+
+
+from otro_paquete import BaseAjena as BaseAjena
+
+
+class HeredaDeAjena(BaseAjena):
+    """Hereda de una clase de otro_paquete: sus métodos heredados deben seguir
+    marcándose como propios de paquete_prueba (spec 2026-07-19)."""

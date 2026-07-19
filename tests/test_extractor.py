@@ -200,3 +200,34 @@ def test_descubrimiento_automatico_no_rompe_con_modulo_simple():
     r = _correr({"libreria": "textwrap", "modulos": None})
     nombres = {s["nombre"] for s in r["simbolos"]}
     assert "textwrap.dedent" in nombres
+
+
+def test_simbolo_propio_declara_su_propia_libreria_como_origen():
+    r = _correr({"libreria": "textwrap", "modulos": ["textwrap"]})
+    por_nombre = {s["nombre"]: s for s in r["simbolos"]}
+    assert por_nombre["textwrap.dedent"]["modulo_origen"] == "textwrap"
+
+
+def test_simbolo_top_level_ajeno_declara_su_libreria_real():
+    """BaseAjena vive en otro_paquete pero se importa en paquete_prueba.base:
+    su origen debe ser 'otro_paquete', no 'paquete_prueba'."""
+    r = _correr(
+        {"libreria": "paquete_prueba", "modulos": ["paquete_prueba.base"]},
+        env=_env_con_fixture_dedupe(),
+    )
+    por_nombre = {s["nombre"]: s for s in r["simbolos"]}
+    assert por_nombre["paquete_prueba.base.BaseAjena"]["modulo_origen"] == "otro_paquete"
+
+
+def test_metodo_heredado_de_clase_ajena_se_atribuye_a_la_clase_duena():
+    """HeredaDeAjena es propia de paquete_prueba aunque su base (BaseAjena) sea
+    de otro_paquete: el método heredado debe marcarse propio de paquete_prueba,
+    no de otro_paquete — decisión de diseño explícita (spec 2026-07-19)."""
+    r = _correr(
+        {"libreria": "paquete_prueba", "modulos": ["paquete_prueba.base"]},
+        env=_env_con_fixture_dedupe(),
+    )
+    por_nombre = {s["nombre"]: s for s in r["simbolos"]}
+    clave = "paquete_prueba.base.HeredaDeAjena.metodo_ajena"
+    assert clave in por_nombre
+    assert por_nombre[clave]["modulo_origen"] == "paquete_prueba"
