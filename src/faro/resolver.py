@@ -65,6 +65,7 @@ class ResolverDeDocs:
             simbolo=entrada.nombre,
             texto=entrada.doc,
             deprecacion=entrada.deprecacion,
+            modulo_origen=entrada.modulo_origen,
             firma=entrada.firma,
         )
 
@@ -117,6 +118,7 @@ class ResolverDeDocs:
                         resuelto_como=e.nombre,
                         deprecacion=e.deprecacion,
                         firma=e.firma,
+                        modulo_origen=e.modulo_origen,
                     )
                 )
 

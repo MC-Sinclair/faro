@@ -1,6 +1,6 @@
 import pytest
 
-from faro.dominio import Ambiguo, Fragmento, NoEncontrado
+from faro.dominio import Ambiguo, EntradaSimbolo, Fragmento, NoEncontrado
 from faro.fuentes.fake import FuenteFake, simbolos_de_prueba
 from faro.resolver import ResolverDeDocs
 
@@ -90,3 +90,28 @@ def test_pedir_otra_version_nunca_devuelve_la_instalada(resolver):
 def test_libreria_desconocida_falla_honestamente(resolver):
     r = resolver.buscar_doc("django", "5.0", "Model.save")
     assert isinstance(r, NoEncontrado)
+
+
+def test_el_fragmento_arrastra_el_origen_propio(resolver):
+    r = resolver.buscar_doc("sqlalchemy", "2.0.36", "Session.execute")
+    assert isinstance(r, Fragmento)
+    assert r.modulo_origen == "sqlalchemy"
+
+
+def test_el_fragmento_declara_un_origen_ajeno():
+    """El caso fundacional de esta spec: un símbolo que solo está importado en
+    la librería consultada, no definido ahí (p. ej. pathlib.Path en faro)."""
+    entradas = [
+        EntradaSimbolo(
+            nombre="faro.fuentes.local.Path.cwd",
+            doc="Return a new path pointing to the current working directory.",
+            deprecacion=None,
+            modulo_origen="pathlib",
+            firma="()",
+        )
+    ]
+    resolver_faro = ResolverDeDocs(FuenteFake(version="0.1.0", entradas=entradas, libreria="faro"))
+    r = resolver_faro.buscar_doc("faro", "0.1.0", "Path.cwd")
+    assert isinstance(r, Fragmento)
+    assert r.modulo_origen == "pathlib"
+    assert r.modulo_origen != r.libreria

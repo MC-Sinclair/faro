@@ -1,6 +1,6 @@
 import pytest
 
-from faro.dominio import NoEncontrado
+from faro.dominio import EntradaSimbolo, NoEncontrado
 from faro.fuentes.fake import FuenteFake, simbolos_de_prueba
 from faro.resolver import ResolverDeDocs
 
@@ -62,3 +62,30 @@ def test_un_ambiguo_sin_deprecados_no_inventa_ninguno(resolver):
     """'select' coincide con dos símbolos, ninguno deprecado."""
     r = resolver.verificar_simbolos("sqlalchemy", "2.0.36", ["select"])
     assert r[0].deprecados == []
+
+
+def test_verificar_arrastra_el_origen_propio(resolver):
+    r = resolver.verificar_simbolos("sqlalchemy", "2.0.36", ["Session.execute"])
+    assert r[0].modulo_origen == "sqlalchemy"
+
+
+def test_verificar_ambiguo_no_afirma_un_origen_unico(resolver):
+    r = resolver.verificar_simbolos("sqlalchemy", "2.0.36", ["select"])
+    assert r[0].modulo_origen is None
+
+
+def test_verificar_marca_un_simbolo_ajeno():
+    """Reproduce el defecto medido: Path.cwd existe pero no es de faro."""
+    entradas = [
+        EntradaSimbolo(
+            nombre="faro.fuentes.local.Path.cwd",
+            doc="doc",
+            deprecacion=None,
+            modulo_origen="pathlib",
+            firma="()",
+        )
+    ]
+    resolver_faro = ResolverDeDocs(FuenteFake(version="0.1.0", entradas=entradas, libreria="faro"))
+    v = resolver_faro.verificar_simbolos("faro", "0.1.0", ["Path.cwd"])
+    assert v[0].existe
+    assert v[0].modulo_origen == "pathlib"
