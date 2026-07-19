@@ -28,9 +28,12 @@ test del núcleo necesita red o subprocesos, el diseño se rompió.
 
 ## Mejoras post-v1 (2026-07-18)
 
-Cerrado el plan de 11 tareas, se hicieron seis cambios. Cuatro de ellos (marcados ⬤) son
-**la misma enfermedad**: Faro tenía el dato disponible y no lo mostraba, dando una
-respuesta falsamente tranquilizadora.
+Cerrado el plan de 11 tareas, se hicieron siete cambios. Cinco de ellos (marcados ⬤) son
+variantes de **la misma enfermedad**: Faro afirmaba algo falso con confianza en vez de
+mostrar o reconocer el dato real que tenía disponible. Los primeros cuatro eran falsos
+negativos (dato oculto, respuesta falsamente tranquilizadora); el quinto —símbolos
+ajenos— es la imagen espejo: un falso positivo, atribuyendo a la librería un símbolo que
+no es suyo.
 
 | Qué | Commit | Detalle |
 |---|---|---|
