@@ -31,12 +31,14 @@ def simbolos_de_prueba() -> list[EntradaSimbolo]:
             nombre="sqlalchemy.orm.Session.execute",
             doc="Execute a SQL expression construct.",
             deprecacion=None,
+            modulo_origen="sqlalchemy",
             firma="(statement, params=None, *, execution_options={})",
         ),
         EntradaSimbolo(
             nombre="sqlalchemy.orm.Session.get",
             doc="Return an instance based on the given primary key identifier.",
             deprecacion=None,
+            modulo_origen="sqlalchemy",
         ),
         EntradaSimbolo(
             nombre="sqlalchemy.orm.Query.get",
@@ -50,6 +52,7 @@ def simbolos_de_prueba() -> list[EntradaSimbolo]:
                 ),
                 reemplazo="Session.get",
             ),
+            modulo_origen="sqlalchemy",
         ),
         # Existe de verdad en 2.0.36 y NO tiene docstring: el extractor lo descartaba
         # entero, haciendo que Faro lo reportara como inexistente.
@@ -57,6 +60,7 @@ def simbolos_de_prueba() -> list[EntradaSimbolo]:
             nombre="sqlalchemy.engine.Connection.commit_prepared",
             doc=None,
             deprecacion=None,
+            modulo_origen="sqlalchemy",
             firma="(xid, recover=False)",
         ),
         # Dos símbolos que colisionan por sufijo: fuerzan el camino Ambiguo.
@@ -64,10 +68,12 @@ def simbolos_de_prueba() -> list[EntradaSimbolo]:
             nombre="sqlalchemy.sql.expression.Select.select",
             doc="Legacy select.",
             deprecacion=None,
+            modulo_origen="sqlalchemy",
         ),
         EntradaSimbolo(
             nombre="sqlalchemy.schema.Table.select",
             doc="Return a SELECT of this Table.",
             deprecacion=None,
+            modulo_origen="sqlalchemy",
         ),
     ]

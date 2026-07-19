@@ -27,3 +27,9 @@ def test_los_simbolos_de_prueba_incluyen_el_caso_query_get():
     query_get = next(e for e in simbolos_de_prueba() if e.nombre == "sqlalchemy.orm.Query.get")
     assert query_get.deprecacion is not None
     assert query_get.deprecacion.reemplazo == "Session.get"
+
+
+def test_los_simbolos_de_prueba_son_propios_de_sqlalchemy():
+    """Son símbolos reales de SQLAlchemy: su origen declarado debe ser la propia
+    librería, no otra."""
+    assert all(e.modulo_origen == "sqlalchemy" for e in simbolos_de_prueba())
