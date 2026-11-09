@@ -113,3 +113,7 @@ uv run pytest -m contrato         # contra SQLAlchemy 2.0.36 real
 - Solo sabe de versiones **instaladas**. No inventa las que no están.
 - Solo paquetes Python. `node:sqlite` queda fuera por construcción.
 - Solo avisa de obsolescencia si la librería la **declara** con `.. deprecated::`.
+
+## Licencia
+
+[MIT](LICENSE)
