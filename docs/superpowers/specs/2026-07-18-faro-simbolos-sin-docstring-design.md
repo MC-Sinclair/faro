@@ -32,7 +32,7 @@ fundamental, porque está en la raíz del extractor y afecta a todo lo que pasa 
 
 **Por qué es urgente ahora y no antes:** mientras Faro era solo-SQLAlchemy, el punto
 ciego era marginal — SQLAlchemy está excepcionalmente bien documentada (`Session` y
-`Engine` tienen 100% de cobertura de docstrings). El catálogo automático (`d174261`)
+`Engine` tienen 100% de cobertura de docstrings). El catálogo automático (`4b2ba6a`)
 cambió el cálculo: ahora Faro trabaja con cualquier librería instalada, y va a
 encontrarse constantemente con código normal, donde no todo método público tiene
 docstring. El caso `faro` no es una anécdota: es representativo de una librería típica.
