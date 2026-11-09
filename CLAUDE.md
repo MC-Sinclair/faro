@@ -236,4 +236,5 @@ en producción.
 - **Todo en español**: código, nombres de herramientas MCP (`buscar_doc`, `listar_versiones`,
   `verificar_simbolos`), mensajes al usuario, commits.
 - Python `>=3.12`, gestionado con `uv` (no `pip`/`venv` a mano).
-- Commits en español, formato imperativo, con `Co-Authored-By` cuando los genera Claude.
+- Commits con formato `tipo: resumen en español` (`feat:`, `fix:`, `docs:`...), **sin** trailer `Co-Authored-By` ni ninguna atribución a Claude.
+- El `README.md` es la cara pública del repo (en español de España, tuteo): actualízalo cuando cambien herramientas, comandos o límites.
