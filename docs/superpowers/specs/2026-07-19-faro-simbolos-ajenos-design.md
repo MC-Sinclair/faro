@@ -107,7 +107,7 @@ tener contra qué comparar el origen de cada símbolo. `main()` ya conoce
   pero expuesto como parte de la superficie de `MiClase` desde el punto de
   vista de quien la usa. Un solo mecanismo cubre ambos casos sin lógica
   especial adicional, y es coherente con cómo ya se trata la herencia entre
-  clases de la MISMA librería (`863af26`).
+  clases de la MISMA librería (`112c44b`).
 
 - **`_anotar(vistos, nombre, objeto_doc, objeto_firma, modulo_origen)`**: gana
   `modulo_origen: str` y lo guarda en el dict de salida junto a `doc`/`firma`.
@@ -181,7 +181,7 @@ falsedad en los datos de prueba que ya presumen ser reales.
     librería/stdlib) → `modulo_origen` = la librería real de origen.
   - método heredado de base ajena → hereda el origen ajeno de la clase
     dueña, no el `__module__` de la base física.
-  - método heredado de base propia (caso `863af26`, ya cubierto) → sigue
+  - método heredado de base propia (caso `112c44b`, ya cubierto) → sigue
     dando `modulo_origen == libreria`; no debe regresionar.
 - **Resolver** (`test_resolver_buscar.py`, `test_resolver_verificar.py`):
   `Fragmento`/`Verificacion` propagan `modulo_origen` sin transformarlo;

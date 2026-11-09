@@ -37,13 +37,13 @@ no es suyo.
 
 | Qué | Commit | Detalle |
 |---|---|---|
-| ⬤ classmethods/staticmethods | `4ae1289` | El extractor solo miraba `inspect.isfunction`/`property`; `URL.create` (constructor canónico) daba "no existe" |
-| Re-exports duplicados | `5fb3b55` | `sqlalchemy.Connection` **es** `sqlalchemy.engine.Connection`; contarlos dos veces hacía que `Connection.execute` saliera "ambiguo" por error (variante: no es dato oculto, es el mismo símbolo contado dos veces) |
-| ⬤ Métodos heredados | `863af26` | El extractor no caminaba el `__mro__`; `CursorResult.fetchall` daba "no existe" (21 de 47 métodos invisibles en esa clase) |
-| ⬤ Firmas de función | `5663f87` | `inspect.signature()` estaba disponible y se descartaba; ahora `buscar_doc` y `verificar_simbolos` la muestran, sin `self`/`cls`. (Mejora, no defecto — pero el mismo patrón: el dato estaba ahí.) |
-| ⬤ Deprecaciones en ambigüedad | `cb95ca9` | Una consulta ambigua descartaba TODA la info de deprecación: `get` decía solo "existe" callando que 2 de 8 candidatos son legacy |
-| Catálogo automático | `6249ca9` | Amplía alcance, no arregla un defecto: funciona con **cualquier librería instalada**, no solo SQLAlchemy (ver sección propia abajo) |
-| ⬤ Símbolos ajenos | `aa5af95` | Faro se atribuía símbolos solo importados, no definidos (`pathlib.Path`, `mcp.FastMCP`): 71% del catálogo de Faro, 1,4% del de SQLAlchemy. No se filtran (rompería `pydantic.ValidationError`, definida en `pydantic_core`): se anota el origen real (`modulo_origen`) en cada símbolo, propagado hasta el texto |
+| ⬤ classmethods/staticmethods | `5351bae` | El extractor solo miraba `inspect.isfunction`/`property`; `URL.create` (constructor canónico) daba "no existe" |
+| Re-exports duplicados | `431e8c1` | `sqlalchemy.Connection` **es** `sqlalchemy.engine.Connection`; contarlos dos veces hacía que `Connection.execute` saliera "ambiguo" por error (variante: no es dato oculto, es el mismo símbolo contado dos veces) |
+| ⬤ Métodos heredados | `112c44b` | El extractor no caminaba el `__mro__`; `CursorResult.fetchall` daba "no existe" (21 de 47 métodos invisibles en esa clase) |
+| ⬤ Firmas de función | `2a434a5` | `inspect.signature()` estaba disponible y se descartaba; ahora `buscar_doc` y `verificar_simbolos` la muestran, sin `self`/`cls`. (Mejora, no defecto — pero el mismo patrón: el dato estaba ahí.) |
+| ⬤ Deprecaciones en ambigüedad | `6e55706` | Una consulta ambigua descartaba TODA la info de deprecación: `get` decía solo "existe" callando que 2 de 8 candidatos son legacy |
+| Catálogo automático | `d174261` | Amplía alcance, no arregla un defecto: funciona con **cualquier librería instalada**, no solo SQLAlchemy (ver sección propia abajo) |
+| ⬤ Símbolos ajenos | `5e4c748` | Faro se atribuía símbolos solo importados, no definidos (`pathlib.Path`, `mcp.FastMCP`): 71% del catálogo de Faro, 1,4% del de SQLAlchemy. No se filtran (rompería `pydantic.ValidationError`, definida en `pydantic_core`): se anota el origen real (`modulo_origen`) en cada símbolo, propagado hasta el texto |
 
 Los cuatro del medio tienen spec en `docs/superpowers/specs/2026-07-18-*`; el último
 (símbolos ajenos) tiene la suya en `docs/superpowers/specs/2026-07-19-faro-simbolos-ajenos-design.md`.
@@ -77,7 +77,7 @@ cualquier aviso de deprecación que la propia librería declare. No busca en la 
 El artefacto instalado es la fuente de verdad.
 
 Librería de referencia: **SQLAlchemy 2.x** (`2.0.36` verificada localmente, y es contra la que
-corren los tests de contrato). Pero desde `6249ca9` funciona con **cualquier librería instalada**
+corren los tests de contrato). Pero desde `d174261` funciona con **cualquier librería instalada**
 — ver "Catálogo automático" abajo.
 
 ## Las cinco decisiones cerradas, y por qué (esto YA NO es material de brainstorming)
@@ -142,7 +142,7 @@ venv real).
 
 ## Catálogo automático: cómo Faro sabe qué módulos escanear
 
-Diseño **híbrido** (`6249ca9`):
+Diseño **híbrido** (`d174261`):
 
 - **SQLAlchemy tiene una entrada curada** en `catalogo.py` (11 módulos elegidos a mano). Gana
   siempre que exista: evita el ruido de dialectos internos, utilidades de testing, etc.
@@ -215,7 +215,7 @@ esto:
 
 1. **Falla el caso fundacional.** Sin inferencia de tipos (que es no-objetivo, ver arriba),
    `session.query(User).get(5)` produce las consultas `query` y `get` — ambas ambiguas. Antes del
-   fix `cb95ca9` eso respondía "existe" a secas, callando la deprecación de `Query.get`: la
+   fix `6e55706` eso respondía "existe" a secas, callando la deprecación de `Query.get`: la
    herramienta habría fallado exactamente en el caso que le da sentido al proyecto.
 2. **Descarta información que quien llama ya tiene.** Un asistente leyendo
    `session.query(User).get(5)` ya sabe que eso es `Query.get`, y puede preguntar por el nombre
@@ -228,7 +228,7 @@ esto:
 **Si se retoma, el orden correcto es: primero el disparador automático, después la herramienta.**
 
 Nota valiosa: el ejercicio de diseñarla no se desperdició — simular su comportamiento sobre el caso
-fundacional fue lo que destapó el defecto de deprecaciones-en-ambigüedad (`cb95ca9`), que ya estaba
+fundacional fue lo que destapó el defecto de deprecaciones-en-ambigüedad (`6e55706`), que ya estaba
 en producción.
 
 ## Convenciones
